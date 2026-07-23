@@ -1,0 +1,39 @@
+# 1. Read all SystemVerilog source files
+read_verilog -sv src/fpu_modules.sv src/fpu_FADDSUB.sv src/fpu_FDIV.sv src/fpu_FMUL.sv
+
+# 2. High-level synthesis with automatic flattening
+synth -top FMUL -flatten
+
+# 3. Read the SkyWater 130nm Liberty file for technology mapping
+read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib
+
+# 4. Map flip-flops and gate logic to Sky130 standard cells
+dfflibmap -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+
+# 5. Clean up dangling wires
+clean
+
+# 6. Output mapped netlist (This step purges the ghost parameters)
+write_verilog -noattr FMUL_synth.v
+
+# 7. Print Area & Gate Count Statistics
+stat -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+
+# ==============================================================
+# THE NETLIST WASH (Fix for Yosys internal STA bug)
+# ==============================================================
+# Completely reset Yosys's internal state
+design -reset
+
+# Reload the Liberty file
+read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib
+
+# Read the clean, parameter-free structural netlist back in
+read_verilog FMUL_synth.v
+
+# Explicitly set the top module
+hierarchy -top FMUL
+
+# 8. Run Static Timing Analysis on the clean netlist
+sta

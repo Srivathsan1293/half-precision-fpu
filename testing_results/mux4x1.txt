@@ -1,0 +1,5 @@
+testing: in0: 0, in1: 1, in2: 2, in3: 3
+sel is 0 output is 0
+sel is 1 output is 1
+sel is 2 output is 2
+sel is 3 output is 3
