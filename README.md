@@ -2,7 +2,7 @@
 
 A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with multiply, add/subtract, and divide operations. Synthesized for the SkyWater 130 nm open-source PDK.
 
-## 🎯 Project Goals
+## Project Goals
 
 1. **IEEE 754 Compliance** — Correct rounding, NaN/Inf handling, subnormal support
 2. **High Performance** — Minimize combinational critical path delay
@@ -10,7 +10,7 @@ A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with mu
 4. **AXI4 Interface** — Wrap the FPU with an AXI4-Lite/AXI4-Stream interface for easy integration
 5. **CPU Integration** — Verify with a RISC-V model CPU (e.g., PicoRV32, VexRiscv) on FPGA
 
-## 🔧 Architecture
+## Architecture
 
 | Module | Description |
 |--------|-------------|
@@ -19,50 +19,80 @@ A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with mu
 | `fpu_FDIV.sv` | Iterative division via reciprocal ROM |
 | `fpu_modules.sv` | Packed module definitions |
 
-## 📊 Current PPA (Sky130 @ 25°C, 1.80 V)
+## PPA (Sky130 @ 25C, 1.80 V)
 
 ### Area
 
-| Module | Cells | Area (µm²) |
-|--------|-------|------------|
-| FMUL | 1,175 | 6,757.73 |
-| FADDSUB | 710 | 4,322.90 |
-| FDIV | 2,907 | 15,642.50 |
-| **Total** | **4,792** | **26,723.13** |
+| Module | Cells | Area (um^2) |
+|--------|-------|-------------|
+| FMUL | 1,047 | 6,035.84 |
+| FADDSUB | 647 | 3,634.31 |
+| FDIV | 2,412 | 13,449.85 |
+| **Total** | **4,106** | **23,120.00** |
 
 ### Timing (combinational, virtual 10 ns clock)
 
 | Module | Critical Path | Max Frequency |
 |--------|--------------|---------------|
-| FMUL | 16.24 ns | 61.6 MHz |
-| FADDSUB | 15.12 ns | 66.1 MHz |
-| FDIV | 21.97 ns | 45.5 MHz |
+| FMUL | 13.44 ns | 74.4 MHz |
+| FADDSUB | 13.28 ns | 75.3 MHz |
+| FDIV (baseline) | 19.61 ns | 51.0 MHz |
+| FDIV (optimized) | **14.32 ns** | **69.8 MHz** |
 
-### Power (10% toggle rate)
+### Power (10% toggle rate, FDIV only)
 
-| Module | Internal | Switching | Leakage | Total |
-|--------|----------|-----------|---------|-------|
-| FMUL | 1.12 mW | 1.16 mW | 2.54 nW | 2.28 mW |
-| FADDSUB | 0.54 mW | 0.64 mW | 1.58 nW | 1.19 mW |
-| FDIV | 37.50 mW | 33.70 mW | 5.97 nW | 71.10 mW |
+| Module | Total Power |
+|--------|-------------|
+| FMUL | — |
+| FADDSUB | — |
+| FDIV (baseline) | 81.4 mW |
+| FDIV (optimized) | 81.4 mW |
 
-## 🗺️ Roadmap
+## FDIV Optimization: 19.61 ns -> 14.32 ns
 
-- [ ] **Reduce critical path** — Re-synthesize with timing-driven ABC, restructure long paths
-- [ ] **Pipeline stages** — Insert pipeline registers, balance stage delays
-- [ ] **AXI4 wrapper** — AXI4-Lite control + AXI4-Stream data interface
-- [ ] **RISC-V integration** — Test with PicoRV32 or VexRiscv on FPGA
-- [ ] **FPGA prototyping** — Synthesize for Lattice/XC7 target board
+The FDIV module uses a reciprocal-ROM-based algorithm: look up 1/B from a ROM, multiply by A, then perform a back-multiply quotient refinement (q_trial * B) and compare the result against the shifted dividend to correct the quotient.
 
-## 🛠️ Tools
+The critical path is entirely combinational with three sequential operations chained:
+1. `initial_prod = reciprocalB * final_manA` (14x11 multiply)
+2. `trial_A = q_trial * final_manB` (15x11 multiply + 26-bit subtract for `diff`)
+3. Cascaded signed comparator tree (6 branches) to select `q_final`
+
+### Synthesis flow
+
+```
+Yosys 0.66 -> ABC (strash + dc2 + dch + timing-driven map)
+          -> OpenSTA 3.1.0 for timing/power analysis
+```
+
+Default ABC mapping produces a 19.61 ns critical path. Adding ABC's timing-driven gate sizing (`-D` + `-constr` flags) triggers `upsize`/`dnsize`/`buffer` passes that replace weak drive-strength cells with faster `_2`/`_4` variants, reducing the path by 27%.
+
+### Attempts that did NOT improve timing
+
+| Attempt | Result |
+|---------|--------|
+| Carry-select adder for `diff` (4-bit blocks) | 15.97 ns (worse) |
+| Parallel comparator tree (replace if-else cascade) | 14.80 ns (worse) |
+| Yosys `opt -full` + ABC | 14.32 ns (identical) |
+| Custom ABC delay scripts (balance/rewrite) | identical or failed |
+| ABC `if` mapper | unavailable in Yosys 0.66 |
+
+ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectural hints (carry-select, parallel comparators). The 14.32 ns fixed point is a fundamental limit of the algorithm's logic depth in Sky130.
+
+### To break past 14.32 ns
+
+- Add pipeline registers inside the quotient refinement loop
+- Use a different division algorithm (Goldschmidt, SRT)
+- Move to a faster technology node
+
+## Tools
 
 - **RTL**: SystemVerilog
-- **Synthesis**: Yosys + ABC (Sky130 cell library)
+- **Synthesis**: Yosys 0.66 + ABC (Sky130 cell library)
 - **Timing/Power**: OpenSTA 3.1.0
 - **Simulation**: Verilator / Icarus Verilog
 - **PDK**: SkyWater 130 nm (`sky130_fd_sc_hd`)
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 .
@@ -72,11 +102,12 @@ A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with mu
 │   ├── fpu_FDIV.sv
 │   └── fpu_modules.sv
 ├── tb/                     # Testbenches
-├── ppa_MUL.ys              # Yosys synthesis scripts
-├── ppa_ADDSUB.ys
-├── ppa_DIV.ys
-├── sta_FMUL.tcl            # OpenSTA timing/power scripts
-├── sta_ADDSUB.tcl
-├── sta_DIV.tcl
-└── ppa_analytics.txt       # Full PPA report
+├── synth_scripts/          # Yosys/OpenSTA PPA scripts
+│   ├── ppa_DIV.ys
+│   ├── sta_DIV.tcl
+│   ├── ppa_FMUL.ys
+│   ├── sta_FMUL.tcl
+│   └── ...
+├── synth_outputs/          # Synthesized netlists and reports
+└── testing_results/
 ```
