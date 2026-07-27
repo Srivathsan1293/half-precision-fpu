@@ -1,108 +1,74 @@
 // src/fpu_FADDSUB.sv
 /* verilator lint_off DECLFILENAME */
-
 module addsub(
     input logic [15:0] a,b,
     input logic sub,
     output logic [15:0] ans
 );
+    //gettin flags for special case answers
+    wire expA_zero = (a[14:10] == 5'd0);
+    wire expB_zero = (b[14:10] == 5'd0);
+    wire expA_max  = (a[14:10] == 5'b11111);
+    wire expB_max  = (b[14:10] == 5'b11111);
+    wire manA_zero = (a[9:0] == 10'd0);
+    wire manB_zero = (b[9:0] == 10'd0);
 
-    //checking for flags NAN/0/INFIN
-    wire nanA, nanB, zeroA, zeroB, infinA, infinB;
-    assign nanA = (& a[14:10]) & (| a[9:0]);
-    assign nanB = (& b[14:10]) & (| b[9:0]);
+    wire nanA   = expA_max & (~manA_zero);
+    wire nanB   = expB_max & (~manB_zero);
+    wire infinA = expA_max & manA_zero;
+    wire infinB = expB_max & manB_zero;
+    wire zeroA     = expA_zero & manA_zero;
+    wire zeroB     = expB_zero & manB_zero;
 
-    assign infinA = (& a[14:10]) & (& (~ a[9:0]));
-    assign infinB = (& b[14:10]) & (& (~ b[9:0]));
+    //if subtraction then flip sign B
+    wire signA = a[15]; wire signB = sub ? ~b[15] : b[15];
 
-    assign zeroA = (& (~ a[14:10])) & (& (~ a[9:0]));
-    assign zeroB = (& (~ b[14:10])) & (& (~ b[9:0]));
+    //splitting inputs
+    wire [6:0] init_expA = {2'b00, a[14:10]};
+    wire [6:0] init_expB = {2'b00, b[14:10]};
 
-    //extracting bits
-    wire signA, init_signB, signB;
-    wire [6:0] init_expA, init_expB;
-    wire [21:0] init_manA, init_manB;
+    wire [21:0] init_manA = { ~expA_zero, a[9:0], {11{1'b0}}};
+    wire [21:0] init_manB = { ~expB_zero, b[9:0], {11{1'b0}}};
+    //getting unbiased exponential
+    wire [6:0] corrected_expA = expA_zero ? 7'b1110010 : (init_expA - 7'd15);
+    wire [6:0] corrected_expB = expB_zero ? 7'b1110010 : (init_expB - 7'd15);
 
-    assign signA = a[15]; assign init_signB = b[15];
-
-    // Zero-extend the unsigned 5-bit exponents
-    assign init_expA = {2'b00, a[14:10]};
-    assign init_expB = {2'b00, b[14:10]};
-
-    assign init_manA[20:0] = {a[9:0], {11{1'b0}}}; assign init_manB[20:0] = {b[9:0], {11{1'b0}}};
-
-    //flipping sign of B if subtracting
-    mux2x1 #(.WIDTH(1)) sign_flip (.in0(init_signB), .in1(~init_signB), .sel(sub), .out(signB));
-
-    wire exp_zeroA = ~(| a[14:10]);
-    wire exp_zeroB = ~(| b[14:10]);
-
-    // Hidden bit is 1 for normals, 0 for subnormals and zero
-    assign init_manA[21] = ~exp_zeroA;
-    assign init_manB[21] = ~exp_zeroB;
-
-    wire [6:0] int_expA, int_expB;
-    /* verilator lint_off UNUSEDSIGNAL */
-    wire [5:0] cout;
-    /* verilator lint_on UNUSEDSIGNAL */
-    //get unbiased signed value of exponents
-    sub #(.WIDTH(7)) real_expA (.a(init_expA), .b(7'd15), .cout(cout[0]), .Sum(int_expA));
-    sub #(.WIDTH(7)) real_expB (.a(init_expB), .b(7'd15), .cout(cout[1]), .Sum(int_expB));
-
-    wire [6:0] corrected_expA, corrected_expB; // if subnormal exponent should be set to -14
-    mux2x1 #(.WIDTH(7)) sub_expA (.in0(int_expA), .in1(7'b1110010), .sel(exp_zeroA), .out(corrected_expA));
-    mux2x1 #(.WIDTH(7)) sub_expB (.in0(int_expB), .in1(7'b1110010), .sel(exp_zeroB), .out(corrected_expB));
-
-    wire [6:0] difference; // find which number is larger
-    sub #(.WIDTH(7)) comp (.a(corrected_expA), .b(corrected_expB), .cout(cout[2]), .Sum(difference));
-
+    wire [6:0] difference = corrected_expA - corrected_expB;
     wire A_is_smaller = difference[6];
-    /* verilator lint_off UNUSEDSIGNAL */
+    //choosing which values are passed on
+     /* verilator lint_off UNUSEDSIGNAL */
     wire [21:0] man_bigger  = A_is_smaller ? init_manB : init_manA;
-    /* verilator lint_on UNUSEDSIGNAL */
+     /* verilator lint_on UNUSEDSIGNAL */
     wire [21:0] man_smaller = A_is_smaller ? init_manA : init_manB;
-    wire [6:0]  abs_diff    = A_is_smaller ? (~difference + 1'b1) : difference; //if B > A then difference is negative, to flip back to be used in shifting
-
+    wire [6:0]  abs_diff    = A_is_smaller ? (-difference) : difference;
+    //adjusting mantissa's to match and catching sticky bits
     logic [21:0] aligned_smaller;
     logic align_sticky;
     always_comb begin
         if (abs_diff >= 22) begin
             aligned_smaller = 22'd0;
-            align_sticky = |man_smaller; // Catch all dropped bits
+            align_sticky = |man_smaller;
         end else begin
             aligned_smaller = man_smaller >> abs_diff;
-            align_sticky = |(man_smaller & ((22'd1 << abs_diff) - 22'd1)); // Bitmask dropped bits
+            align_sticky = 1'b0;
+            for (int i = 0; i < 22; i++) begin
+                if (i < abs_diff && man_smaller[i]) align_sticky = 1'b1;
+            end
         end
     end
 
-    wire [6:0] final_exp; //choosing what exponent and sign to pass on for calculation
-    wire final_sign;
-    mux2x1 #(.WIDTH(7)) exp_sel (.in0(corrected_expA), .in1(corrected_expB), .sel(A_is_smaller), .out(final_exp));
-    mux2x1 #(.WIDTH(1)) sign_sel (.in0(signA), .in1(signB), .sel(A_is_smaller), .out(final_sign));
-    //if signs of input was different then we need to subtract bigger - smaller
+    wire [6:0] final_exp = A_is_smaller ? corrected_expB : corrected_expA;
+    wire final_sign = A_is_smaller ? signB : signA;
     wire subtract = signA ^ signB;
-
-    // Load full precision into ALU, combining captured sticky bits
+    //finding manA - manB and normalising
     wire [13:0] alu_bigger  = {man_bigger[21:9], 1'b0};
     wire [13:0] alu_smaller = {aligned_smaller[21:9], align_sticky | (|aligned_smaller[8:0])};
 
-    logic [14:0] addsub_man_norm;
-    always_comb begin
-        if (subtract) begin
-            addsub_man_norm = {1'b0, alu_bigger} - {1'b0, alu_smaller};
-        end else begin
-            addsub_man_norm = {1'b0, alu_bigger} + {1'b0, alu_smaller};
-        end
-    end
-
-    //check if the mantissa's sign is flipped when subtracting and fix that
-    wire sign_temp;
-    mux2x1 #(.WIDTH(1)) sign_fix (.in0(final_sign), .in1(~final_sign), .sel(subtract & addsub_man_norm[14]), .out(sign_temp));
-
-    logic [14:0] addsub_man;
-    mux2x1 #(.WIDTH(15)) man_fix (.in0(addsub_man_norm), .in1((~addsub_man_norm + 1'b1)), .sel(subtract & addsub_man_norm[14]), .out(addsub_man));
-
-    // If effective subtraction results in exact zero, force positive sign (+0.0)
+    wire [14:0] addsub_man_norm = subtract ? ({1'b0, alu_bigger} - {1'b0, alu_smaller}) : ({1'b0, alu_bigger} + {1'b0, alu_smaller});
+    //checking if sign flipped from subtraction
+    wire sign_temp = (subtract & addsub_man_norm[14]) ? ~final_sign : final_sign;
+    wire [14:0] addsub_man = (subtract & addsub_man_norm[14]) ? (-addsub_man_norm) : addsub_man_norm;
+    //checking if answer is 0 set sign to 0 as per standard
     wire sign = (addsub_man == 15'd0 && subtract) ? 1'b0 : sign_temp;
 
     wire [21:0] pre_norm_man = {addsub_man, 7'b0};
@@ -136,15 +102,12 @@ module addsub(
             endcase
         end
     end
-
-    //checking for subnormal answer
-
-    /* verilator lint_off UNUSEDSIGNAL */
+     /* verilator lint_off UNUSEDSIGNAL */
     logic [21:0] sub_man;
     /* verilator lint_on UNUSEDSIGNAL */
     logic [6:0] sub_exp;
     logic [6:0] shift_amt_signed;
-
+    // checking is answer is subnormal
     always_comb begin
         if ($signed(exp_fixing) < -7'sd14) begin
             shift_amt_signed = -7'sd14 - $signed(exp_fixing);
@@ -153,7 +116,9 @@ module addsub(
                 sub_man = {21'd0, |man_fixing};
             end else begin
                 sub_man = (man_fixing >> shift_amt_signed);
-                sub_man[0] = sub_man[0] | (| (man_fixing & ((22'd1 << shift_amt_signed) - 22'd1)));
+                for (int i = 0; i < 22; i++) begin
+                    if (i < shift_amt_signed && man_fixing[i]) sub_man[0] = 1'b1;
+                end
             end
         end else begin
             sub_man = man_fixing;
@@ -161,7 +126,7 @@ module addsub(
             shift_amt_signed = 0;
         end
     end
-    //applying rounding rules
+    // applying RNTE rounding
     wire G_r = sub_man[9];
     wire R_r = sub_man[8];
     wire S_r = |sub_man[7:0];
@@ -169,7 +134,6 @@ module addsub(
 
     wire round_up = G_r & (R_r | S_r | LSB_r);
 
-    // Add 1 to combined hidden+fraction block to easily track carry overflow
     wire [11:0] rounded_fraction = sub_man[20:10] + 1'b1;
 
     logic [9:0] man;
@@ -194,26 +158,25 @@ module addsub(
         end
     end
 
-    wire overflow = ($signed(exp) > 7'sd15);
+    wire overflow = ~exp[6] & (exp[5] | exp[4]);
 
     logic [4:0] exp_packed;
     always_comb begin
         if ($signed(exp) <= -7'sd15) begin
-            exp_packed = 5'd0; // True Zero
+            exp_packed = 5'd0;
         end else if ($signed(exp) == -7'sd14 && final_hidden_bit == 1'b0) begin
-            exp_packed = 5'd0; // Subnormal Number
+            exp_packed = 5'd0;
         end else begin
-            exp_packed = exp[4:0] + 5'd15; // Normal Number
+            exp_packed = exp[4:0] + 5'd15;
         end
     end
 
-    //sort between subnormal, normal, special case answers
     wire [15:0] ans_calculated;
     logic [15:0] ans_corrected;
 
     assign ans_calculated[15] = sign;
-    mux2x1 #(.WIDTH(5)) exp_corrected (.in0(exp_packed), .in1(5'b11111), .sel(overflow), .out(ans_calculated[14:10]));
-    mux2x1 #(.WIDTH(10)) man_corrected (.in0(man), .in1(10'd0), .sel(overflow), .out(ans_calculated[9:0]));
+    assign ans_calculated[14:10] = overflow ? 5'b11111 : exp_packed;
+    assign ans_calculated[9:0] = overflow ? 10'd0 : man;
 
     always_comb begin
         ans_corrected = ans_calculated;

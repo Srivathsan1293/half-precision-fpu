@@ -1,0 +1,1022 @@
+
+-- Executing script file `synth_scripts/ppa_block2_datapath.ys' --
+
+1. Executing Verilog-2005 frontend: src/fpu_modules.sv
+Parsing SystemVerilog input from `src/fpu_modules.sv' to AST representation.
+Generating RTLIL representation for module `\mux2x1'.
+Generating RTLIL representation for module `\mux4x1'.
+Generating RTLIL representation for module `\fadd'.
+Generating RTLIL representation for module `\add'.
+Generating RTLIL representation for module `\sub'.
+Generating RTLIL representation for module `\left'.
+Generating RTLIL representation for module `\right'.
+Generating RTLIL representation for module `\booth_decode'.
+Generating RTLIL representation for module `\MUL'.
+Warning: Replacing memory \completed_partial_products with list of registers. See src/fpu_modules.sv:177
+Generating RTLIL representation for module `\subnormal_fix'.
+Generating RTLIL representation for module `\reciprocal_rom'.
+Successfully finished Verilog frontend.
+
+2. Executing Verilog-2005 frontend: src/fdiv_blocks.sv
+Parsing SystemVerilog input from `src/fdiv_blocks.sv' to AST representation.
+Generating RTLIL representation for module `\fdiv_input_stage'.
+Generating RTLIL representation for module `\fdiv_div_datapath'.
+Generating RTLIL representation for module `\fdiv_post_process'.
+Successfully finished Verilog frontend.
+
+3. Executing SYNTH pass.
+
+3.1. Executing HIERARCHY pass (managing design hierarchy).
+
+3.1.1. Analyzing design hierarchy..
+Top module:  \fdiv_div_datapath
+
+3.1.2. Analyzing design hierarchy..
+Top module:  \fdiv_div_datapath
+Removing unused module `\fdiv_post_process'.
+Removing unused module `\fdiv_input_stage'.
+Removing unused module `\subnormal_fix'.
+Removing unused module `\MUL'.
+Removing unused module `\booth_decode'.
+Removing unused module `\right'.
+Removing unused module `\left'.
+Removing unused module `\sub'.
+Removing unused module `\add'.
+Removing unused module `\fadd'.
+Removing unused module `\mux4x1'.
+Removing unused module `\mux2x1'.
+Removed 12 unused modules.
+
+3.2. Executing PROC pass (convert processes to netlists).
+
+3.2.1. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Cleaned up 0 empty switches.
+
+3.2.2. Executing PROC_RMDEAD pass (remove dead branches from decision trees).
+Marked 6 switch rules as full_case in process $proc$src/fdiv_blocks.sv:118$227 in module fdiv_div_datapath.
+Removed a total of 0 dead cases.
+
+3.2.3. Executing PROC_PRUNE pass (remove redundant assignments in processes).
+Removed 0 redundant assignments.
+Promoted 8 assignments to connections.
+
+3.2.4. Executing PROC_INIT pass (extract init attributes).
+
+3.2.5. Executing PROC_ARST pass (detect async resets in processes).
+
+3.2.6. Executing PROC_ROM pass (convert switches to ROMs).
+Converted 0 switches.
+<suppressed ~6 debug messages>
+
+3.2.7. Executing PROC_MUX pass (convert decision trees to multiplexers).
+Creating decoders for process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:118$227'.
+     1/12: $6\sticky_final[0:0]
+     2/12: $6\q_final[14:0]
+     3/12: $5\sticky_final[0:0]
+     4/12: $5\q_final[14:0]
+     5/12: $4\q_final[14:0]
+     6/12: $4\sticky_final[0:0]
+     7/12: $3\sticky_final[0:0]
+     8/12: $3\q_final[14:0]
+     9/12: $2\sticky_final[0:0]
+    10/12: $2\q_final[14:0]
+    11/12: $1\sticky_final[0:0]
+    12/12: $1\q_final[14:0]
+Creating decoders for process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:98$196'.
+
+3.2.8. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `\fdiv_div_datapath.\sticky_final' from process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:118$227'.
+No latch inferred for signal `\fdiv_div_datapath.\prod' from process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:118$227'.
+No latch inferred for signal `\fdiv_div_datapath.\q_final' from process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:118$227'.
+No latch inferred for signal `\fdiv_div_datapath.\q_trial' from process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:98$196'.
+No latch inferred for signal `\fdiv_div_datapath.\trial_A' from process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:98$196'.
+No latch inferred for signal `\fdiv_div_datapath.\diff' from process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:98$196'.
+No latch inferred for signal `\fdiv_div_datapath.\shifted_A' from process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:98$196'.
+No latch inferred for signal `\fdiv_div_datapath.\initial_prod' from process `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:98$196'.
+
+3.2.9. Executing PROC_DFF pass (convert process syncs to FFs).
+
+3.2.10. Executing PROC_MEMWR pass (convert process memory writes to cells).
+
+3.2.11. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Found and cleaned up 6 empty switches in `\fdiv_div_datapath.$proc$src/fdiv_blocks.sv:118$227'.
+Removing empty process `fdiv_div_datapath.$proc$src/fdiv_blocks.sv:118$227'.
+Removing empty process `fdiv_div_datapath.$proc$src/fdiv_blocks.sv:98$196'.
+Cleaned up 6 empty switches.
+
+3.2.12. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+<suppressed ~7 debug messages>
+
+3.3. Executing CHECK pass (checking for obvious problems).
+Checking module fdiv_div_datapath...
+Found and reported 0 problems.
+
+3.4. Executing FLATTEN pass (flatten design).
+
+3.5. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.6. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+Removed 3 unused cells and 82 unused wires.
+<suppressed ~7 debug messages>
+
+3.7. Executing CHECK pass (checking for obvious problems).
+Checking module fdiv_div_datapath...
+Found and reported 0 problems.
+
+3.8. Executing OPT pass (performing simple optimizations).
+
+3.8.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.8.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 84 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Computing hashes of 82 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+<suppressed ~6 debug messages>
+Removed a total of 2 cells.
+
+3.8.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \fdiv_div_datapath..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+      Replacing known input bits on port A of cell $ternary$src/fdiv_blocks.sv:132$242: { \prod [23:0] 1'0 } -> { 1'0 \prod [22:0] 1'0 }
+      Replacing known input bits on port B of cell $ternary$src/fdiv_blocks.sv:132$242: \prod -> { \prod [24] 1'1 \prod [22:0] }
+      Replacing known input bits on port A of cell $ternary$src/fdiv_blocks.sv:109$205: \diff_lo -> { 1'0 \diff_lo [14:0] }
+  Analyzing evaluation results.
+    dead port 1/2 on $mux $procmux$423.
+    dead port 1/2 on $mux $procmux$420.
+    dead port 1/2 on $mux $procmux$414.
+    dead port 1/2 on $mux $procmux$411.
+    dead port 1/2 on $mux $procmux$405.
+    dead port 1/2 on $mux $procmux$402.
+    dead port 1/2 on $mux $procmux$399.
+    dead port 1/2 on $mux $procmux$393.
+    dead port 1/2 on $mux $procmux$390.
+    dead port 1/2 on $mux $procmux$387.
+    dead port 1/2 on $mux $procmux$381.
+    dead port 1/2 on $mux $procmux$378.
+    dead port 1/2 on $mux $procmux$375.
+    dead port 2/2 on $mux $procmux$372.
+    dead port 1/2 on $mux $procmux$366.
+    dead port 1/2 on $mux $procmux$363.
+    dead port 1/2 on $mux $procmux$360.
+    dead port 2/2 on $mux $procmux$357.
+    dead port 1/2 on $mux $procmux$351.
+    dead port 1/2 on $mux $procmux$348.
+    dead port 1/2 on $mux $procmux$345.
+    dead port 2/2 on $mux $procmux$342.
+    dead port 1/2 on $mux $procmux$339.
+    dead port 1/2 on $mux $procmux$333.
+    dead port 1/2 on $mux $procmux$330.
+    dead port 1/2 on $mux $procmux$327.
+    dead port 2/2 on $mux $procmux$324.
+    dead port 1/2 on $mux $procmux$321.
+    dead port 1/2 on $mux $procmux$435.
+    dead port 1/2 on $mux $procmux$429.
+Removed 30 multiplexer ports.
+<suppressed ~52 debug messages>
+
+3.8.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \fdiv_div_datapath.
+Performed a total of 0 changes.
+
+3.8.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 52 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.8.6. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.8.7. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+Removed 0 unused cells and 32 unused wires.
+<suppressed ~1 debug messages>
+
+3.8.8. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.8.9. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.8.10. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \fdiv_div_datapath..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~22 debug messages>
+
+3.8.11. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \fdiv_div_datapath.
+Performed a total of 0 changes.
+
+3.8.12. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 52 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.8.13. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.8.14. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.8.15. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.8.16. Finished fast OPT passes. (There is nothing left to do.)
+
+3.9. Executing FSM pass (extract and optimize FSM).
+
+3.9.1. Executing FSM_DETECT pass (finding FSMs in design).
+
+3.9.2. Executing FSM_EXTRACT pass (extracting FSM from design).
+
+3.9.3. Executing FSM_OPT pass (simple optimizations of FSMs).
+
+3.9.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.9.5. Executing FSM_OPT pass (simple optimizations of FSMs).
+
+3.9.6. Executing FSM_RECODE pass (re-assigning FSM state encoding).
+
+3.9.7. Executing FSM_INFO pass (dumping all available information on FSM cells).
+
+3.9.8. Executing FSM_MAP pass (mapping FSMs to basic logic).
+
+3.10. Executing OPT pass (performing simple optimizations).
+
+3.10.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.10.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 52 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.10.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \fdiv_div_datapath..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~22 debug messages>
+
+3.10.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \fdiv_div_datapath.
+Performed a total of 0 changes.
+
+3.10.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 52 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.10.6. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.10.7. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.10.8. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.10.9. Finished fast OPT passes. (There is nothing left to do.)
+
+3.11. Executing WREDUCE pass (reducing word size of cells).
+Removed top 1 bits (of 25) from port A of cell fdiv_div_datapath.$add$src/fdiv_blocks.sv:99$198 ($add).
+Removed top 12 bits (of 25) from port B of cell fdiv_div_datapath.$add$src/fdiv_blocks.sv:99$198 ($add).
+Removed top 3 bits (of 28) from port A of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:103$200 ($sub).
+Removed top 1 bits (of 28) from port B of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:103$200 ($sub).
+Converting cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:103$200 ($sub) from signed to unsigned.
+Removed top 1 bits (of 25) from port A of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:103$200 ($sub).
+Removed top 1 bits (of 27) from port B of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:103$200 ($sub).
+Removed top 1 bits (of 28) from port Y of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:103$200 ($sub).
+Removed top 2 bits (of 18) from mux cell fdiv_div_datapath.$ternary$src/fdiv_blocks.sv:106$201 ($mux).
+Removed top 1 bits (of 16) from mux cell fdiv_div_datapath.$ternary$src/fdiv_blocks.sv:109$205 ($mux).
+Removed top 4 bits (of 16) from port B of cell fdiv_div_datapath.$ge$src/fdiv_blocks.sv:110$207 ($ge).
+Removed top 5 bits (of 16) from port B of cell fdiv_div_datapath.$ge$src/fdiv_blocks.sv:111$210 ($ge).
+Removed top 4 bits (of 16) from port B of cell fdiv_div_datapath.$lt$src/fdiv_blocks.sv:111$212 ($lt).
+Removed top 5 bits (of 16) from port B of cell fdiv_div_datapath.$lt$src/fdiv_blocks.sv:112$217 ($lt).
+Removed top 5 bits (of 16) from port B of cell fdiv_div_datapath.$le$src/fdiv_blocks.sv:114$219 ($le).
+Removed top 5 bits (of 16) from port B of cell fdiv_div_datapath.$gt$src/fdiv_blocks.sv:115$221 ($gt).
+Removed top 4 bits (of 16) from port B of cell fdiv_div_datapath.$le$src/fdiv_blocks.sv:115$223 ($le).
+Removed top 13 bits (of 15) from port B of cell fdiv_div_datapath.$add$src/fdiv_blocks.sv:121$228 ($add).
+Removed top 3 bits (of 16) from port B of cell fdiv_div_datapath.$gt$src/fdiv_blocks.sv:121$229 ($gt).
+Removed top 14 bits (of 15) from port B of cell fdiv_div_datapath.$add$src/fdiv_blocks.sv:122$230 ($add).
+Removed top 4 bits (of 16) from port B of cell fdiv_div_datapath.$gt$src/fdiv_blocks.sv:122$231 ($gt).
+Removed top 14 bits (of 15) from port B of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:125$232 ($sub).
+Removed top 4 bits (of 16) from port A of cell fdiv_div_datapath.$neg$src/fdiv_blocks.sv:125$233 ($neg).
+Converting cell fdiv_div_datapath.$neg$src/fdiv_blocks.sv:125$233 ($neg) from signed to unsigned.
+Removed top 1 bits (of 12) from port A of cell fdiv_div_datapath.$neg$src/fdiv_blocks.sv:125$233 ($neg).
+Removed top 13 bits (of 15) from port B of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:126$235 ($sub).
+Removed top 3 bits (of 16) from port A of cell fdiv_div_datapath.$neg$src/fdiv_blocks.sv:126$236 ($neg).
+Converting cell fdiv_div_datapath.$neg$src/fdiv_blocks.sv:126$236 ($neg) from signed to unsigned.
+Removed top 1 bits (of 13) from port A of cell fdiv_div_datapath.$neg$src/fdiv_blocks.sv:126$236 ($neg).
+Removed top 13 bits (of 15) from port B of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:127$238 ($sub).
+Removed top 24 bits (of 25) from port B of cell fdiv_div_datapath.$or$src/fdiv_blocks.sv:128$239 ($or).
+Removed top 6 bits (of 7) from port B of cell fdiv_div_datapath.$sub$src/fdiv_blocks.sv:131$240 ($sub).
+Removed top 1 bits (of 16) from port Y of cell fdiv_div_datapath.$neg$src/fdiv_blocks.sv:109$204 ($neg).
+Removed top 1 bits (of 16) from port A of cell fdiv_div_datapath.$neg$src/fdiv_blocks.sv:109$204 ($neg).
+Removed top 1 bits (of 16) from wire fdiv_div_datapath.$neg$src/fdiv_blocks.sv:109$204_Y.
+Removed top 4 bits (of 16) from wire fdiv_div_datapath.B14x2.
+Removed top 2 bits (of 26) from wire fdiv_div_datapath.shifted_A.
+
+3.12. Executing PEEPOPT pass (run peephole optimizers).
+
+3.13. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+Removed 0 unused cells and 5 unused wires.
+<suppressed ~1 debug messages>
+
+3.14. Executing ALUMACC pass (create $alu and $macc cells).
+Extracting $alu and $macc cells in module fdiv_div_datapath:
+  creating $macc model for $sub$src/fdiv_blocks.sv:131$240 ($sub).
+  creating $macc model for $sub$src/fdiv_blocks.sv:127$238 ($sub).
+  creating $macc model for $neg$src/fdiv_blocks.sv:126$236 ($neg).
+  creating $macc model for $sub$src/fdiv_blocks.sv:126$235 ($sub).
+  creating $macc model for $neg$src/fdiv_blocks.sv:125$233 ($neg).
+  creating $macc model for $sub$src/fdiv_blocks.sv:125$232 ($sub).
+  creating $macc model for $add$src/fdiv_blocks.sv:122$230 ($add).
+  creating $macc model for $add$src/fdiv_blocks.sv:121$228 ($add).
+  creating $macc model for $neg$src/fdiv_blocks.sv:109$204 ($neg).
+  creating $macc model for $sub$src/fdiv_blocks.sv:103$200 ($sub).
+  creating $macc model for $mul$src/fdiv_blocks.sv:101$199 ($mul).
+  creating $macc model for $add$src/fdiv_blocks.sv:99$198 ($add).
+  creating $macc model for $mul$src/fdiv_blocks.sv:99$197 ($mul).
+  merging $macc model for $mul$src/fdiv_blocks.sv:101$199 into $sub$src/fdiv_blocks.sv:103$200.
+  creating $alu model for $macc $add$src/fdiv_blocks.sv:99$198.
+  creating $alu model for $macc $neg$src/fdiv_blocks.sv:109$204.
+  creating $alu model for $macc $add$src/fdiv_blocks.sv:121$228.
+  creating $alu model for $macc $add$src/fdiv_blocks.sv:122$230.
+  creating $alu model for $macc $sub$src/fdiv_blocks.sv:125$232.
+  creating $alu model for $macc $neg$src/fdiv_blocks.sv:125$233.
+  creating $alu model for $macc $sub$src/fdiv_blocks.sv:126$235.
+  creating $alu model for $macc $neg$src/fdiv_blocks.sv:126$236.
+  creating $alu model for $macc $sub$src/fdiv_blocks.sv:127$238.
+  creating $alu model for $macc $sub$src/fdiv_blocks.sv:131$240.
+  creating $macc cell for $mul$src/fdiv_blocks.sv:99$197: $auto$alumacc.cc:382:replace_macc$446
+  creating $macc cell for $sub$src/fdiv_blocks.sv:103$200: $auto$alumacc.cc:382:replace_macc$447
+  creating $alu model for $gt$src/fdiv_blocks.sv:122$231 ($gt): new $alu
+  creating $alu model for $gt$src/fdiv_blocks.sv:121$229 ($gt): new $alu
+  creating $alu model for $le$src/fdiv_blocks.sv:115$223 ($le): new $alu
+  creating $alu model for $gt$src/fdiv_blocks.sv:115$221 ($gt): new $alu
+  creating $alu model for $le$src/fdiv_blocks.sv:114$219 ($le): merged with $gt$src/fdiv_blocks.sv:115$221.
+  creating $alu model for $lt$src/fdiv_blocks.sv:112$217 ($lt): merged with $gt$src/fdiv_blocks.sv:115$221.
+  creating $alu model for $lt$src/fdiv_blocks.sv:111$212 ($lt): merged with $le$src/fdiv_blocks.sv:115$223.
+  creating $alu model for $ge$src/fdiv_blocks.sv:111$210 ($ge): merged with $gt$src/fdiv_blocks.sv:115$221.
+  creating $alu model for $ge$src/fdiv_blocks.sv:110$207 ($ge): merged with $le$src/fdiv_blocks.sv:115$223.
+  creating $alu cell for $gt$src/fdiv_blocks.sv:115$221, $le$src/fdiv_blocks.sv:114$219, $lt$src/fdiv_blocks.sv:112$217, $ge$src/fdiv_blocks.sv:111$210: $auto$alumacc.cc:512:replace_alu$452
+  creating $alu cell for $le$src/fdiv_blocks.sv:115$223, $lt$src/fdiv_blocks.sv:111$212, $ge$src/fdiv_blocks.sv:110$207: $auto$alumacc.cc:512:replace_alu$467
+  creating $alu cell for $gt$src/fdiv_blocks.sv:121$229: $auto$alumacc.cc:512:replace_alu$482
+  creating $alu cell for $gt$src/fdiv_blocks.sv:122$231: $auto$alumacc.cc:512:replace_alu$495
+  creating $alu cell for $sub$src/fdiv_blocks.sv:131$240: $auto$alumacc.cc:512:replace_alu$508
+  creating $alu cell for $sub$src/fdiv_blocks.sv:127$238: $auto$alumacc.cc:512:replace_alu$511
+  creating $alu cell for $neg$src/fdiv_blocks.sv:126$236: $auto$alumacc.cc:512:replace_alu$514
+  creating $alu cell for $sub$src/fdiv_blocks.sv:126$235: $auto$alumacc.cc:512:replace_alu$517
+  creating $alu cell for $neg$src/fdiv_blocks.sv:125$233: $auto$alumacc.cc:512:replace_alu$520
+  creating $alu cell for $sub$src/fdiv_blocks.sv:125$232: $auto$alumacc.cc:512:replace_alu$523
+  creating $alu cell for $add$src/fdiv_blocks.sv:122$230: $auto$alumacc.cc:512:replace_alu$526
+  creating $alu cell for $add$src/fdiv_blocks.sv:121$228: $auto$alumacc.cc:512:replace_alu$529
+  creating $alu cell for $neg$src/fdiv_blocks.sv:109$204: $auto$alumacc.cc:512:replace_alu$532
+  creating $alu cell for $add$src/fdiv_blocks.sv:99$198: $auto$alumacc.cc:512:replace_alu$535
+  created 14 $alu and 2 $macc cells.
+
+3.15. Executing SHARE pass (SAT-based resource sharing).
+
+3.16. Executing OPT pass (performing simple optimizations).
+
+3.16.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.16.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 69 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.16.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \fdiv_div_datapath..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~22 debug messages>
+
+3.16.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \fdiv_div_datapath.
+Performed a total of 0 changes.
+
+3.16.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 69 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.16.6. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.16.7. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+Removed 1 unused cells and 10 unused wires.
+<suppressed ~3 debug messages>
+
+3.16.8. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.16.9. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.16.10. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \fdiv_div_datapath..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~22 debug messages>
+
+3.16.11. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \fdiv_div_datapath.
+Performed a total of 0 changes.
+
+3.16.12. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 68 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.16.13. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.16.14. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.16.15. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.16.16. Finished fast OPT passes. (There is nothing left to do.)
+
+3.17. Executing MEMORY pass.
+
+3.17.1. Executing OPT_MEM pass (optimize memories).
+Performed a total of 0 transformations.
+
+3.17.2. Executing OPT_MEM_PRIORITY pass (removing unnecessary memory write priority relations).
+Performed a total of 0 transformations.
+
+3.17.3. Executing OPT_MEM_FEEDBACK pass (finding memory read-to-write feedback paths).
+
+3.17.4. Executing MEMORY_BMUX2ROM pass (converting muxes to ROMs).
+
+3.17.5. Executing MEMORY_DFF pass (merging $dff cells to $memrd).
+
+3.17.6. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.17.7. Executing MEMORY_SHARE pass (consolidating $memrd/$memwr cells).
+
+3.17.8. Executing OPT_MEM_WIDEN pass (optimize memories where all ports are wide).
+Performed a total of 0 transformations.
+
+3.17.9. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.17.10. Executing MEMORY_COLLECT pass (generating $mem cells).
+
+3.18. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.19. Executing OPT pass (performing simple optimizations).
+
+3.19.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+<suppressed ~20 debug messages>
+
+3.19.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 70 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.19.3. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.19.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+Removed 1 unused cells and 10 unused wires.
+<suppressed ~3 debug messages>
+
+3.19.5. Finished fast OPT passes.
+
+3.20. Executing MEMORY_MAP pass (converting memories to logic and flip-flops).
+
+3.21. Executing OPT pass (performing simple optimizations).
+
+3.21.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.21.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 68 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.21.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \fdiv_div_datapath..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~22 debug messages>
+
+3.21.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \fdiv_div_datapath.
+    Consolidated identical input bits for $mux cell $ternary$src/fdiv_blocks.sv:132$242:
+      Old ports: A={ 1'0 \q_final [12:0] 9'000000000 \sticky_final 1'0 }, B={ \q_final [14] 1'1 \q_final [12:0] 9'000000000 \sticky_final }, Y=\normalised_prod
+      New ports: A={ 1'0 \q_final [12:0] 1'0 \sticky_final 1'0 }, B={ \q_final [14] 1'1 \q_final [12:0] 1'0 \sticky_final }, Y={ \normalised_prod [24:10] \normalised_prod [1:0] }
+      New connections: \normalised_prod [9:2] = 8'00000000
+    Consolidated identical input bits for $mux cell $ternary$src/fdiv_blocks.sv:106$201:
+      Old ports: A={ 2'00 \diff [13:0] }, B={ 2'11 \diff [13:0] }, Y=\diff_lo
+      New ports: A=1'0, B=1'1, Y=\diff_lo [14]
+      New connections: { \diff_lo [15] \diff_lo [13:0] } = { \diff_lo [14] \diff [13:0] }
+  Optimizing cells in module \fdiv_div_datapath.
+    New input vector for $reduce_or cell $reduce_or$src/fdiv_blocks.sv:108$202: { \diff_lo [14] \diff [13:0] }
+  Optimizing cells in module \fdiv_div_datapath.
+Performed a total of 3 changes.
+
+3.21.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 68 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.21.6. Executing OPT_SHARE pass.
+
+3.21.7. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.21.8. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.21.9. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+<suppressed ~1 debug messages>
+
+3.21.10. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.21.11. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \fdiv_div_datapath..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+      Replacing known input bits on port A of cell $ternary$src/fdiv_blocks.sv:109$205: { \diff_neg \diff [13:0] } -> { 1'0 \diff [13:0] }
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~20 debug messages>
+
+3.21.12. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \fdiv_div_datapath.
+Performed a total of 0 changes.
+
+3.21.13. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 67 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.21.14. Executing OPT_SHARE pass.
+
+3.21.15. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.21.16. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+
+3.21.17. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+
+3.21.18. Finished fast OPT passes. (There is nothing left to do.)
+
+3.22. Executing TECHMAP pass (map to technology primitives).
+
+3.22.1. Executing Verilog-2005 frontend: /usr/bin/../share/yosys/techmap.v
+Parsing Verilog input from `/usr/bin/../share/yosys/techmap.v' to AST representation.
+Generating RTLIL representation for module `\_90_simplemap_bool_ops'.
+Generating RTLIL representation for module `\_90_simplemap_reduce_ops'.
+Generating RTLIL representation for module `\_90_simplemap_logic_ops'.
+Generating RTLIL representation for module `\_90_simplemap_compare_ops'.
+Generating RTLIL representation for module `\_90_simplemap_various'.
+Generating RTLIL representation for module `\_90_simplemap_registers'.
+Generating RTLIL representation for module `\_90_shift_ops_shr_shl_sshl_sshr'.
+Generating RTLIL representation for module `\_90_shift_shiftx'.
+Generating RTLIL representation for module `\_90_fa'.
+Generating RTLIL representation for module `\_90_lcu_brent_kung'.
+Generating RTLIL representation for module `\_90_alu'.
+Generating RTLIL representation for module `\_90_macc'.
+Generating RTLIL representation for module `\_90_alumacc'.
+Generating RTLIL representation for module `$__div_mod_u'.
+Generating RTLIL representation for module `$__div_mod_trunc'.
+Generating RTLIL representation for module `\_90_div'.
+Generating RTLIL representation for module `\_90_mod'.
+Generating RTLIL representation for module `$__div_mod_floor'.
+Generating RTLIL representation for module `\_90_divfloor'.
+Generating RTLIL representation for module `\_90_modfloor'.
+Generating RTLIL representation for module `\_90_pow'.
+Generating RTLIL representation for module `\_90_demux'.
+Generating RTLIL representation for module `\_90_lut'.
+Generating RTLIL representation for module `$connect'.
+Generating RTLIL representation for module `$input_port'.
+Successfully finished Verilog frontend.
+
+3.22.2. Continuing TECHMAP pass.
+Using extmapper simplemap for cells of type $not.
+Using template $paramod$aa43f2dbffadf36a7e9a5a6a61a7417f2989191d\_90_alu for cells of type $alu.
+Using template $paramod$713617589782cfade849bb573b5c36106c4b708f\_90_alu for cells of type $alu.
+Using template $paramod$3b7577489eb4433b1d5620cab7f3794743dee5ea\_90_alu for cells of type $alu.
+Using template $paramod$675ee3ed071b156aa661bdfa838b7e469d095ac0\_90_alu for cells of type $alu.
+Using template $paramod$f9f7e1bcdcbef28f1ef3d03792e95413ccbdb0c2\_90_alu for cells of type $alu.
+Using template $paramod$1ed7ec530b1ba361931392f2f8504f82ccdfecaa\_90_alu for cells of type $alu.
+Using template $paramod$ff6849eb5d36ff4891960f2e7ee090c8770e8133\_90_alu for cells of type $alu.
+Using template $paramod$b80be600e98e5b39498758407c5ba39da15cbc3d\_90_alu for cells of type $alu.
+Using template $paramod$10ed987432f06055e5279101f9ec60a49861b43c\_90_alu for cells of type $alu.
+Using extmapper simplemap for cells of type $or.
+Using extmapper simplemap for cells of type $reduce_and.
+Using extmapper simplemap for cells of type $xor.
+Using template $paramod$10a7fddc8a601bc8f4a5ffaf8b08ba4de3b4ca36\_90_alu for cells of type $alu.
+Using template $paramod$7a388946f99c976d91aa4eb496f643daf2c9c177\_90_alu for cells of type $alu.
+Using extmapper simplemap for cells of type $reduce_or.
+Using template $paramod$75d4465b5362f47f8faf1498769b32af049430ad\_90_alu for cells of type $alu.
+Using template $paramod$842a12c80d98d0ad9c29abf1823e139933e6385b\_90_alu for cells of type $alu.
+Using extmapper maccmap for cells of type $macc_v2.
+  sub { 1'0 \final_manA \initial_prod [12:10] } * \final_manB (15x11 bits, unsigned)
+  add { \final_manA 13'0000000000000 } (24 bits, unsigned)
+  add \reciprocalB [12:0] * \final_manA (13x11 bits, unsigned)
+Using extmapper simplemap for cells of type $mux.
+Using extmapper simplemap for cells of type $and.
+Using extmapper simplemap for cells of type $ne.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000001101 for cells of type $fa.
+Using template $paramod$2780480d52179e2db572a6e5133edf36e733d32e\_90_alu for cells of type $alu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000011011 for cells of type $fa.
+Using template $paramod$f02bbbf710bba6238f4bdfa41b3051acfe2064a8\_90_alu for cells of type $alu.
+Using extmapper simplemap for cells of type $pos.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000001111 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000001111 for cells of type $lcu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000001110 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000001110 for cells of type $lcu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000010000 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000010000 for cells of type $lcu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000000111 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000000111 for cells of type $lcu.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000001101 for cells of type $lcu.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000011011 for cells of type $lcu.
+No more expansions possible.
+<suppressed ~2410 debug messages>
+
+3.23. Executing OPT pass (performing simple optimizations).
+
+3.23.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+<suppressed ~2867 debug messages>
+
+3.23.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 2978 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Computing hashes of 2814 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Computing hashes of 2786 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Computing hashes of 2772 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Computing hashes of 2770 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Computing hashes of 2768 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+<suppressed ~630 debug messages>
+Removed a total of 210 cells.
+
+3.23.3. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.23.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+Removed 245 unused cells and 1282 unused wires.
+<suppressed ~246 debug messages>
+
+3.23.5. Finished fast OPT passes.
+
+3.24. Executing ABC pass (technology mapping using ABC).
+
+3.24.1. Extracting gate netlist of module `\fdiv_div_datapath' to `<abc-temp-dir>/input.blif'..
+
+3.24.1.1. Executed ABC.
+Extracted 2522 gates and 2566 wires to a netlist network with 42 inputs and 24 outputs.
+Running ABC script: <abc-temp-dir>/abc.script
+ABC: ======== ABC command line "source <abc-temp-dir>/abc.script"
+ABC: + read_blif <abc-temp-dir>/input.blif 
+ABC: + read_library <abc-temp-dir>/stdcells.genlib 
+ABC: + strash 
+ABC: + &get -n 
+ABC: + &fraig -x 
+ABC: + &put 
+ABC: + scorr 
+ABC: Warning: The network is combinational (run "fraig" or "fraig_sweep").
+ABC: + dc2 
+ABC: + dretime 
+ABC: + strash 
+ABC: + &get -n 
+ABC: + &dch -f 
+ABC: + &nf 
+ABC: + &put 
+ABC: + write_blif <abc-temp-dir>/output.blif 
+
+3.24.1.2. Re-integrating ABC results.
+ABC RESULTS:               AND cells:      321
+ABC RESULTS:            ANDNOT cells:       43
+ABC RESULTS:               MUX cells:       37
+ABC RESULTS:              NAND cells:      827
+ABC RESULTS:               NOR cells:       16
+ABC RESULTS:               NOT cells:        7
+ABC RESULTS:                OR cells:      104
+ABC RESULTS:             ORNOT cells:       49
+ABC RESULTS:              XNOR cells:      134
+ABC RESULTS:               XOR cells:      373
+ABC RESULTS:              ZERO cells:        1
+ABC RESULTS:        internal signals:     2500
+ABC RESULTS:           input signals:       42
+ABC RESULTS:          output signals:       24
+Removing temp directory.
+Removing global temp directory.
+
+3.25. Executing OPT pass (performing simple optimizations).
+
+3.25.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module fdiv_div_datapath.
+<suppressed ~1 debug messages>
+
+3.25.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\fdiv_div_datapath'.
+Computing hashes of 1912 cells of `\fdiv_div_datapath'.
+Finding duplicate cells in `\fdiv_div_datapath'.
+Removed a total of 0 cells.
+
+3.25.3. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.25.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \fdiv_div_datapath..
+Removed 0 unused cells and 626 unused wires.
+<suppressed ~6 debug messages>
+
+3.25.5. Finished fast OPT passes.
+
+3.26. Executing HIERARCHY pass (managing design hierarchy).
+Attribute `top' found on module `fdiv_div_datapath'. Setting top module to fdiv_div_datapath.
+
+3.26.1. Analyzing design hierarchy..
+Top module:  \fdiv_div_datapath
+
+3.26.2. Analyzing design hierarchy..
+Top module:  \fdiv_div_datapath
+Removed 0 unused modules.
+
+3.27. Printing statistics.
+
+=== fdiv_div_datapath ===
+
+        +----------Local Count, excluding submodules.
+        | 
+     1906 wires
+     2156 wire bits
+       18 public wires
+      268 public wire bits
+        5 ports
+       61 port bits
+     1912 cells
+       43   $_ANDNOT_
+      321   $_AND_
+       37   $_MUX_
+      827   $_NAND_
+       16   $_NOR_
+        7   $_NOT_
+       49   $_ORNOT_
+      104   $_OR_
+      134   $_XNOR_
+      373   $_XOR_
+        1   reciprocal_rom
+
+3.28. Executing CHECK pass (checking for obvious problems).
+Checking module fdiv_div_datapath...
+Found and reported 0 problems.
+
+4. Executing Liberty frontend: sky130_fd_sc_hd__tt_025C_1v80.lib
+Imported 428 cell types from liberty file.
+
+5. Executing DFFLIBMAP pass (mapping DFF cells to sequential cells from liberty file).
+  cell sky130_fd_sc_hd__dfxtp_1 (noninv, pins=3, area=20.02) is a direct match for cell type $_DFF_P_.
+  cell sky130_fd_sc_hd__dfrtn_1 (noninv, pins=4, area=25.02) is a direct match for cell type $_DFF_NN0_.
+  cell sky130_fd_sc_hd__dfrtp_1 (noninv, pins=4, area=25.02) is a direct match for cell type $_DFF_PN0_.
+  cell sky130_fd_sc_hd__dfstp_2 (noninv, pins=4, area=26.28) is a direct match for cell type $_DFF_PN1_.
+  cell sky130_fd_sc_hd__edfxtp_1 (noninv, pins=4, area=30.03) is a direct match for cell type $_DFFE_PP_.
+  cell sky130_fd_sc_hd__dfbbn_1 (noninv, pins=6, area=32.53) is a direct match for cell type $_DFFSR_NNN_.
+  cell sky130_fd_sc_hd__dfbbp_1 (noninv, pins=6, area=32.53) is a direct match for cell type $_DFFSR_PNN_.
+  final dff cell mappings:
+    unmapped dff cell: $_DFF_N_
+    \sky130_fd_sc_hd__dfxtp_1 _DFF_P_ (.CLK( C), .D( D), .Q( Q));
+    \sky130_fd_sc_hd__dfrtn_1 _DFF_NN0_ (.CLK_N( C), .D( D), .Q( Q), .RESET_B( R));
+    unmapped dff cell: $_DFF_NN1_
+    unmapped dff cell: $_DFF_NP0_
+    unmapped dff cell: $_DFF_NP1_
+    \sky130_fd_sc_hd__dfrtp_1 _DFF_PN0_ (.CLK( C), .D( D), .Q( Q), .RESET_B( R));
+    \sky130_fd_sc_hd__dfstp_2 _DFF_PN1_ (.CLK( C), .D( D), .Q( Q), .SET_B( R));
+    unmapped dff cell: $_DFF_PP0_
+    unmapped dff cell: $_DFF_PP1_
+    unmapped dff cell: $_DFFE_NN_
+    unmapped dff cell: $_DFFE_NP_
+    unmapped dff cell: $_DFFE_PN_
+    \sky130_fd_sc_hd__edfxtp_1 _DFFE_PP_ (.CLK( C), .D( D), .DE( E), .Q( Q));
+    \sky130_fd_sc_hd__dfbbn_1 _DFFSR_NNN_ (.CLK_N( C), .D( D), .Q( Q), .Q_N(~Q), .RESET_B( R), .SET_B( S));
+    unmapped dff cell: $_DFFSR_NNP_
+    unmapped dff cell: $_DFFSR_NPN_
+    unmapped dff cell: $_DFFSR_NPP_
+    \sky130_fd_sc_hd__dfbbp_1 _DFFSR_PNN_ (.CLK( C), .D( D), .Q( Q), .Q_N(~Q), .RESET_B( R), .SET_B( S));
+    unmapped dff cell: $_DFFSR_PNP_
+    unmapped dff cell: $_DFFSR_PPN_
+    unmapped dff cell: $_DFFSR_PPP_
+
+5.1. Executing DFFLEGALIZE pass (convert FFs to types supported by the target).
+<suppressed ~24 debug messages>
+Mapping DFF cells in module `\fdiv_div_datapath':
+
+6. Executing ABC pass (technology mapping using ABC).
+
+6.1. Extracting gate netlist of module `\fdiv_div_datapath' to `<abc-temp-dir>/input.blif'..
+ABC: using cached merged SCL: /tmp/yosys-liberty-scl-cache/yosys_merged_9872f647.scl (1 files)
+
+6.1.1. Executed ABC.
+Extracted 1911 gates and 1953 wires to a netlist network with 42 inputs and 23 outputs.
+Running ABC script: <abc-temp-dir>/abc.script
+ABC: ======== ABC command line "source <abc-temp-dir>/abc.script"
+ABC: + read_blif <abc-temp-dir>/input.blif 
+ABC: + read_scl /tmp/yosys-liberty-scl-cache/yosys_merged_9872f647.scl 
+ABC: Warning: Detected 9 multi-output cells (for example, "sky130_fd_sc_hd__fa_1").
+ABC: + strash 
+ABC: + &get -n 
+ABC: + &fraig -x 
+ABC: + &put 
+ABC: + scorr 
+ABC: Warning: The network is combinational (run "fraig" or "fraig_sweep").
+ABC: + dc2 
+ABC: + dretime 
+ABC: + strash 
+ABC: + &get -n 
+ABC: + &dch -f 
+ABC: + &nf 
+ABC: + &put 
+ABC: + write_blif <abc-temp-dir>/output.blif 
+
+6.1.2. Re-integrating ABC results.
+ABC RESULTS:   sky130_fd_sc_hd__a2111o_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__a2111oi_0 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__a211o_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__a211oi_1 cells:        9
+ABC RESULTS:   sky130_fd_sc_hd__a21boi_0 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__a21o_1 cells:       16
+ABC RESULTS:   sky130_fd_sc_hd__a21oi_1 cells:       76
+ABC RESULTS:   sky130_fd_sc_hd__a22o_1 cells:       24
+ABC RESULTS:   sky130_fd_sc_hd__a22oi_1 cells:       19
+ABC RESULTS:   sky130_fd_sc_hd__a31o_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__a31oi_1 cells:        5
+ABC RESULTS:   sky130_fd_sc_hd__a32o_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__a32oi_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__and2_0 cells:       21
+ABC RESULTS:   sky130_fd_sc_hd__and3_1 cells:       12
+ABC RESULTS:   sky130_fd_sc_hd__and4_1 cells:        7
+ABC RESULTS:   sky130_fd_sc_hd__clkinv_1 cells:       43
+ABC RESULTS:   sky130_fd_sc_hd__lpflow_inputiso1p_1 cells:       12
+ABC RESULTS:   sky130_fd_sc_hd__lpflow_isobufsrc_1 cells:       20
+ABC RESULTS:   sky130_fd_sc_hd__maj3_1 cells:       95
+ABC RESULTS:   sky130_fd_sc_hd__mux2_1 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__mux2i_1 cells:       17
+ABC RESULTS:   sky130_fd_sc_hd__nand2_1 cells:      280
+ABC RESULTS:   sky130_fd_sc_hd__nand2b_1 cells:       18
+ABC RESULTS:   sky130_fd_sc_hd__nand3_1 cells:       43
+ABC RESULTS:   sky130_fd_sc_hd__nand3b_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__nand4_1 cells:       29
+ABC RESULTS:   sky130_fd_sc_hd__nand4b_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__nor2_1 cells:      106
+ABC RESULTS:   sky130_fd_sc_hd__nor2b_1 cells:        7
+ABC RESULTS:   sky130_fd_sc_hd__nor3_1 cells:       21
+ABC RESULTS:   sky130_fd_sc_hd__nor3b_1 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__nor4_1 cells:        7
+ABC RESULTS:   sky130_fd_sc_hd__nor4b_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__o2111a_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__o2111ai_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o211a_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__o211ai_1 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__o21a_1 cells:       16
+ABC RESULTS:   sky130_fd_sc_hd__o21ai_0 cells:       58
+ABC RESULTS:   sky130_fd_sc_hd__o21bai_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o221ai_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__o22a_1 cells:        7
+ABC RESULTS:   sky130_fd_sc_hd__o22ai_1 cells:       13
+ABC RESULTS:   sky130_fd_sc_hd__o2bb2ai_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o31ai_1 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__o41a_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__or3_1 cells:        8
+ABC RESULTS:   sky130_fd_sc_hd__or4_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__xnor2_1 cells:      210
+ABC RESULTS:   sky130_fd_sc_hd__xnor3_1 cells:       28
+ABC RESULTS:   sky130_fd_sc_hd__xor2_1 cells:      135
+ABC RESULTS:   sky130_fd_sc_hd__xor3_1 cells:       13
+ABC RESULTS:        internal signals:     1888
+ABC RESULTS:           input signals:       42
+ABC RESULTS:          output signals:       23
+Removing temp directory.
+Removing global temp directory.
+Removed 0 unused cells and 1953 unused wires.
+
+7. Printing statistics.
+
+=== fdiv_div_datapath ===
+
+        +----------Local Count, excluding submodules.
+        |        +-Local Area, excluding submodules.
+        |        | 
+     1428        - wires
+     1678        - wire bits
+       18        - public wires
+      268        - public wire bits
+        5        - ports
+       61        - port bits
+     1434 9.91E+03 cells
+        1        -   reciprocal_rom
+        1   11.261   sky130_fd_sc_hd__a2111o_1
+        2   17.517   sky130_fd_sc_hd__a2111oi_0
+        2   17.517   sky130_fd_sc_hd__a211o_1
+        9   67.565   sky130_fd_sc_hd__a211oi_1
+        6   45.043   sky130_fd_sc_hd__a21boi_0
+       16  120.115   sky130_fd_sc_hd__a21o_1
+       76  380.365   sky130_fd_sc_hd__a21oi_1
+       24  210.202   sky130_fd_sc_hd__a22o_1
+       19  142.637   sky130_fd_sc_hd__a22oi_1
+        2   17.517   sky130_fd_sc_hd__a31o_1
+        5    31.28   sky130_fd_sc_hd__a31oi_1
+        2   20.019   sky130_fd_sc_hd__a32o_1
+        2   17.517   sky130_fd_sc_hd__a32oi_1
+       21  131.376   sky130_fd_sc_hd__and2_0
+       12   75.072   sky130_fd_sc_hd__and3_1
+        7   61.309   sky130_fd_sc_hd__and4_1
+       43  161.405   sky130_fd_sc_hd__clkinv_1
+       12   75.072   sky130_fd_sc_hd__lpflow_inputiso1p_1
+       20   125.12   sky130_fd_sc_hd__lpflow_isobufsrc_1
+       95  950.912   sky130_fd_sc_hd__maj3_1
+        3   33.782   sky130_fd_sc_hd__mux2_1
+       17  170.163   sky130_fd_sc_hd__mux2i_1
+      280 1.05E+03   sky130_fd_sc_hd__nand2_1
+       18  112.608   sky130_fd_sc_hd__nand2b_1
+       43  215.206   sky130_fd_sc_hd__nand3_1
+        2   15.014   sky130_fd_sc_hd__nand3b_1
+       29  181.424   sky130_fd_sc_hd__nand4_1
+        1    8.758   sky130_fd_sc_hd__nand4b_1
+      106  397.882   sky130_fd_sc_hd__nor2_1
+        7   43.792   sky130_fd_sc_hd__nor2b_1
+       21  105.101   sky130_fd_sc_hd__nor3_1
+        3   22.522   sky130_fd_sc_hd__nor3b_1
+        7   43.792   sky130_fd_sc_hd__nor4_1
+        1    8.758   sky130_fd_sc_hd__nor4b_1
+        1   11.261   sky130_fd_sc_hd__o2111a_1
+        4   35.034   sky130_fd_sc_hd__o2111ai_1
+        1    10.01   sky130_fd_sc_hd__o211a_1
+        6   45.043   sky130_fd_sc_hd__o211ai_1
+       16  120.115   sky130_fd_sc_hd__o21a_1
+       58  290.278   sky130_fd_sc_hd__o21ai_0
+        4   30.029   sky130_fd_sc_hd__o21bai_1
+        2   17.517   sky130_fd_sc_hd__o221ai_1
+        7   61.309   sky130_fd_sc_hd__o22a_1
+       13   81.328   sky130_fd_sc_hd__o22ai_1
+        4   35.034   sky130_fd_sc_hd__o2bb2ai_1
+        6   45.043   sky130_fd_sc_hd__o31ai_1
+        1   11.261   sky130_fd_sc_hd__o41a_1
+        8   50.048   sky130_fd_sc_hd__or3_1
+        2   15.014   sky130_fd_sc_hd__or4_1
+      210 1.84E+03   sky130_fd_sc_hd__xnor2_1
+       28  630.605   sky130_fd_sc_hd__xnor3_1
+      135 1.18E+03   sky130_fd_sc_hd__xor2_1
+       13  309.046   sky130_fd_sc_hd__xor3_1
+
+   Area for cell type \reciprocal_rom is unknown!
+
+   Chip area for module '\fdiv_div_datapath': 9908.252800
+     of which used for sequential elements: 0.000000 (0.00%)
+
+8. Executing Verilog backend.
+
+8.1. Executing BMUXMAP pass.
+
+8.2. Executing DEMUXMAP pass.
+Dumping module `\fdiv_div_datapath'.
+
+9. Executing SETUNDEF pass (replace undef values with defined constants).
+
+10. Executing SPLITNETS pass (splitting up multi-bit signals).
+
+11. Executing STA pass (static timing analysis).
+ERROR: Module `sky130_fd_sc_hd__xor2_1' is used with parameters but is not parametric!

@@ -1,0 +1,14 @@
+# Multiplier (FMUL) PPA
+read_verilog -sv src/fpu_modules.sv
+read_verilog -sv src/fpu_FMUL.sv
+synth -top FMUL -flatten
+read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib
+dfflibmap -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+clean
+stat -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+write_verilog synth_outputs/FMUL_synth.v
+# STA below may fail due to yosys liberty parameter issue
+setundef -zero
+splitnets
+sta

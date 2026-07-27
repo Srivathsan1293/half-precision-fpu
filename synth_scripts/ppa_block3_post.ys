@@ -1,0 +1,11 @@
+read_verilog -sv src/fdiv_blocks.sv
+synth -top fdiv_post_process -flatten
+read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib
+dfflibmap -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+clean
+stat -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+write_verilog synth_outputs/block3_post_synth.v
+setundef -zero
+splitnets
+sta

@@ -13,6 +13,6 @@ module fpu_test (
     //right #(.WIDTH(4)) right_4bit(.value(a), .shift_amt(b), .ans(ans));
     //MUL mul (.A(a), .B(b), .ans(ans));
     //FMUL fpu (.a(a), .b(b), .ans(ans));
-    addsub fpu (.a(a), .b(b), .sub(sub), .ans(ans));
-    //DIV fpu (.a(a), .b(b), .out(ans));
+    //addsub fpu (.a(a), .b(b), .sub(sub), .ans(ans));
+    DIV fpu (.a(a), .b(b), .out(ans));
 endmodule

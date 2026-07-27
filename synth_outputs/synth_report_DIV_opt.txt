@@ -1,0 +1,1240 @@
+
+-- Running command `read_verilog -sv src/fpu_modules.sv; read_verilog -sv src/fpu_FDIV.sv; blackbox reciprocal_rom; synth -top DIV -flatten; read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib; dfflibmap -liberty sky130_fd_sc_hd__tt_025C_1v80.lib; abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib; clean; stat -liberty sky130_fd_sc_hd__tt_025C_1v80.lib; write_verilog synth_outputs/DIV_synth.v; setundef -zero; splitnets' --
+
+1. Executing Verilog-2005 frontend: src/fpu_modules.sv
+Parsing SystemVerilog input from `src/fpu_modules.sv' to AST representation.
+Generating RTLIL representation for module `\mux2x1'.
+Generating RTLIL representation for module `\mux4x1'.
+Generating RTLIL representation for module `\fadd'.
+Generating RTLIL representation for module `\add'.
+Generating RTLIL representation for module `\sub'.
+Generating RTLIL representation for module `\left'.
+Generating RTLIL representation for module `\right'.
+Generating RTLIL representation for module `\booth_decode'.
+Generating RTLIL representation for module `\MUL'.
+Warning: Replacing memory \completed_partial_products with list of registers. See src/fpu_modules.sv:177
+Generating RTLIL representation for module `\subnormal_fix'.
+Generating RTLIL representation for module `\reciprocal_rom'.
+Successfully finished Verilog frontend.
+
+2. Executing Verilog-2005 frontend: src/fpu_FDIV.sv
+Parsing SystemVerilog input from `src/fpu_FDIV.sv' to AST representation.
+Generating RTLIL representation for module `\DIV'.
+Successfully finished Verilog frontend.
+
+3. Executing SYNTH pass.
+
+3.1. Executing HIERARCHY pass (managing design hierarchy).
+
+3.1.1. Analyzing design hierarchy..
+Top module:  \DIV
+
+3.1.2. Analyzing design hierarchy..
+Top module:  \DIV
+Removing unused module `\subnormal_fix'.
+Removing unused module `\MUL'.
+Removing unused module `\booth_decode'.
+Removing unused module `\right'.
+Removing unused module `\left'.
+Removing unused module `\sub'.
+Removing unused module `\add'.
+Removing unused module `\fadd'.
+Removing unused module `\mux4x1'.
+Removing unused module `\mux2x1'.
+Removed 10 unused modules.
+
+3.2. Executing PROC pass (convert processes to netlists).
+
+3.2.1. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Cleaned up 0 empty switches.
+
+3.2.2. Executing PROC_RMDEAD pass (remove dead branches from decision trees).
+Marked 2 switch rules as full_case in process $proc$src/fpu_FDIV.sv:190$271 in module DIV.
+Marked 6 switch rules as full_case in process $proc$src/fpu_FDIV.sv:124$220 in module DIV.
+Marked 2 switch rules as full_case in process $proc$src/fpu_FDIV.sv:39$167 in module DIV.
+Removed a total of 0 dead cases.
+
+3.2.3. Executing PROC_PRUNE pass (remove redundant assignments in processes).
+Removed 0 redundant assignments.
+Promoted 13 assignments to connections.
+
+3.2.4. Executing PROC_INIT pass (extract init attributes).
+
+3.2.5. Executing PROC_ARST pass (detect async resets in processes).
+
+3.2.6. Executing PROC_ROM pass (convert switches to ROMs).
+Converted 0 switches.
+<suppressed ~10 debug messages>
+
+3.2.7. Executing PROC_MUX pass (convert decision trees to multiplexers).
+Creating decoders for process `\DIV.$proc$src/fpu_FDIV.sv:190$271'.
+     1/2: $2\special_ans[15:0]
+     2/2: $1\special_ans[15:0]
+Creating decoders for process `\DIV.$proc$src/fpu_FDIV.sv:124$220'.
+     1/12: $6\sticky_final[0:0]
+     2/12: $6\q_final[14:0]
+     3/12: $5\sticky_final[0:0]
+     4/12: $5\q_final[14:0]
+     5/12: $4\sticky_final[0:0]
+     6/12: $4\q_final[14:0]
+     7/12: $3\sticky_final[0:0]
+     8/12: $3\q_final[14:0]
+     9/12: $2\sticky_final[0:0]
+    10/12: $2\q_final[14:0]
+    11/12: $1\sticky_final[0:0]
+    12/12: $1\q_final[14:0]
+Creating decoders for process `\DIV.$proc$src/fpu_FDIV.sv:107$196'.
+Creating decoders for process `\DIV.$proc$src/fpu_FDIV.sv:39$167'.
+     1/4: $1\shift_amtB[4:0]
+     2/4: $1\sub_manB[10:0]
+     3/4: $1\shift_amtA[4:0]
+     4/4: $1\sub_manA[10:0]
+
+3.2.8. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `\DIV.\special_ans' from process `\DIV.$proc$src/fpu_FDIV.sv:190$271'.
+No latch inferred for signal `\DIV.\prod' from process `\DIV.$proc$src/fpu_FDIV.sv:124$220'.
+No latch inferred for signal `\DIV.\q_final' from process `\DIV.$proc$src/fpu_FDIV.sv:124$220'.
+No latch inferred for signal `\DIV.\sticky_final' from process `\DIV.$proc$src/fpu_FDIV.sv:124$220'.
+No latch inferred for signal `\DIV.\initial_prod' from process `\DIV.$proc$src/fpu_FDIV.sv:107$196'.
+No latch inferred for signal `\DIV.\q_trial' from process `\DIV.$proc$src/fpu_FDIV.sv:107$196'.
+No latch inferred for signal `\DIV.\trial_A' from process `\DIV.$proc$src/fpu_FDIV.sv:107$196'.
+No latch inferred for signal `\DIV.\diff' from process `\DIV.$proc$src/fpu_FDIV.sv:107$196'.
+No latch inferred for signal `\DIV.\shifted_A' from process `\DIV.$proc$src/fpu_FDIV.sv:107$196'.
+No latch inferred for signal `\DIV.\sub_manA' from process `\DIV.$proc$src/fpu_FDIV.sv:39$167'.
+No latch inferred for signal `\DIV.\sub_manB' from process `\DIV.$proc$src/fpu_FDIV.sv:39$167'.
+No latch inferred for signal `\DIV.\shift_amtA' from process `\DIV.$proc$src/fpu_FDIV.sv:39$167'.
+No latch inferred for signal `\DIV.\shift_amtB' from process `\DIV.$proc$src/fpu_FDIV.sv:39$167'.
+
+3.2.9. Executing PROC_DFF pass (convert process syncs to FFs).
+
+3.2.10. Executing PROC_MEMWR pass (convert process memory writes to cells).
+
+3.2.11. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Found and cleaned up 2 empty switches in `\DIV.$proc$src/fpu_FDIV.sv:190$271'.
+Removing empty process `DIV.$proc$src/fpu_FDIV.sv:190$271'.
+Found and cleaned up 6 empty switches in `\DIV.$proc$src/fpu_FDIV.sv:124$220'.
+Removing empty process `DIV.$proc$src/fpu_FDIV.sv:124$220'.
+Removing empty process `DIV.$proc$src/fpu_FDIV.sv:107$196'.
+Found and cleaned up 2 empty switches in `\DIV.$proc$src/fpu_FDIV.sv:39$167'.
+Removing empty process `DIV.$proc$src/fpu_FDIV.sv:39$167'.
+Cleaned up 10 empty switches.
+
+3.2.12. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+<suppressed ~25 debug messages>
+
+3.3. Executing CHECK pass (checking for obvious problems).
+Checking module DIV...
+Found and reported 0 problems.
+
+3.4. Executing FLATTEN pass (flatten design).
+
+3.5. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.6. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+Removed 2 unused cells and 163 unused wires.
+<suppressed ~7 debug messages>
+
+3.7. Executing CHECK pass (checking for obvious problems).
+Checking module DIV...
+Found and reported 0 problems.
+
+3.8. Executing OPT pass (performing simple optimizations).
+
+3.8.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.8.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 194 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Computing hashes of 169 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+<suppressed ~75 debug messages>
+Removed a total of 25 cells.
+
+3.8.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \DIV..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+      Replacing known input bits on port A of cell $ternary$src/fpu_FDIV.sv:145$240: \normalised_exp -> { 1'0 \normalised_exp [5:0] }
+      Replacing known input bits on port A of cell $ternary$src/fpu_FDIV.sv:139$235: { \prod [23:0] 1'0 } -> { 1'0 \prod [22:0] 1'0 }
+      Replacing known input bits on port B of cell $ternary$src/fpu_FDIV.sv:139$235: \prod -> { \prod [24] 1'1 \prod [22:0] }
+      Replacing known input bits on port A of cell $procmux$432: { 1'1 \b [9:0] } -> { 2'10 \b [8:0] }
+      Replacing known input bits on port A of cell $procmux$456: { 1'1 \a [9:0] } -> { 2'10 \a [8:0] }
+  Analyzing evaluation results.
+    dead port 1/2 on $mux $procmux$390.
+    dead port 1/2 on $mux $procmux$387.
+    dead port 1/2 on $mux $procmux$381.
+    dead port 1/2 on $mux $procmux$378.
+    dead port 1/2 on $mux $procmux$375.
+    dead port 1/2 on $mux $procmux$369.
+    dead port 1/2 on $mux $procmux$366.
+    dead port 1/2 on $mux $procmux$363.
+    dead port 1/2 on $mux $procmux$357.
+    dead port 1/2 on $mux $procmux$354.
+    dead port 1/2 on $mux $procmux$351.
+    dead port 1/2 on $mux $procmux$348.
+    dead port 1/2 on $mux $procmux$342.
+    dead port 1/2 on $mux $procmux$339.
+    dead port 1/2 on $mux $procmux$336.
+    dead port 1/2 on $mux $procmux$333.
+    dead port 1/2 on $mux $procmux$327.
+    dead port 1/2 on $mux $procmux$324.
+    dead port 1/2 on $mux $procmux$321.
+    dead port 1/2 on $mux $procmux$318.
+    dead port 1/2 on $mux $procmux$315.
+    dead port 1/2 on $mux $procmux$309.
+    dead port 1/2 on $mux $procmux$306.
+    dead port 1/2 on $mux $procmux$303.
+    dead port 1/2 on $mux $procmux$300.
+    dead port 1/2 on $mux $procmux$297.
+    dead port 1/2 on $mux $procmux$288.
+    dead port 1/2 on $mux $procmux$411.
+    dead port 1/2 on $mux $procmux$405.
+    dead port 1/2 on $mux $procmux$399.
+    dead port 1/2 on $mux $procmux$396.
+Removed 31 multiplexer ports.
+<suppressed ~84 debug messages>
+
+3.8.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \DIV.
+Performed a total of 0 changes.
+
+3.8.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 138 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.8.6. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.8.7. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+Removed 0 unused cells and 56 unused wires.
+<suppressed ~1 debug messages>
+
+3.8.8. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.8.9. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.8.10. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \DIV..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~53 debug messages>
+
+3.8.11. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \DIV.
+Performed a total of 0 changes.
+
+3.8.12. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 138 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.8.13. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.8.14. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.8.15. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.8.16. Finished fast OPT passes. (There is nothing left to do.)
+
+3.9. Executing FSM pass (extract and optimize FSM).
+
+3.9.1. Executing FSM_DETECT pass (finding FSMs in design).
+
+3.9.2. Executing FSM_EXTRACT pass (extracting FSM from design).
+
+3.9.3. Executing FSM_OPT pass (simple optimizations of FSMs).
+
+3.9.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.9.5. Executing FSM_OPT pass (simple optimizations of FSMs).
+
+3.9.6. Executing FSM_RECODE pass (re-assigning FSM state encoding).
+
+3.9.7. Executing FSM_INFO pass (dumping all available information on FSM cells).
+
+3.9.8. Executing FSM_MAP pass (mapping FSMs to basic logic).
+
+3.10. Executing OPT pass (performing simple optimizations).
+
+3.10.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.10.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 138 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.10.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \DIV..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~53 debug messages>
+
+3.10.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \DIV.
+Performed a total of 0 changes.
+
+3.10.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 138 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.10.6. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.10.7. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.10.8. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.10.9. Finished fast OPT passes. (There is nothing left to do.)
+
+3.11. Executing WREDUCE pass (reducing word size of cells).
+Removed top 6 bits (of 7) from port A of cell DIV.$sub$src/fpu_FDIV.sv:69$188 ($sub).
+Removed top 2 bits (of 7) from port B of cell DIV.$sub$src/fpu_FDIV.sv:69$188 ($sub).
+Removed top 1 bits (of 7) from port Y of cell DIV.$sub$src/fpu_FDIV.sv:69$188 ($sub).
+Removed top 6 bits (of 7) from port A of cell DIV.$sub$src/fpu_FDIV.sv:70$189 ($sub).
+Removed top 2 bits (of 7) from port B of cell DIV.$sub$src/fpu_FDIV.sv:70$189 ($sub).
+Removed top 1 bits (of 7) from port Y of cell DIV.$sub$src/fpu_FDIV.sv:70$189 ($sub).
+Removed top 3 bits (of 7) from port B of cell DIV.$add$src/fpu_FDIV.sv:84$195 ($add).
+Removed top 3 bits (of 28) from port A of cell DIV.$sub$src/fpu_FDIV.sv:112$199 ($sub).
+Removed top 1 bits (of 28) from port B of cell DIV.$sub$src/fpu_FDIV.sv:112$199 ($sub).
+Converting cell DIV.$sub$src/fpu_FDIV.sv:112$199 ($sub) from signed to unsigned.
+Removed top 1 bits (of 25) from port A of cell DIV.$sub$src/fpu_FDIV.sv:112$199 ($sub).
+Removed top 1 bits (of 27) from port B of cell DIV.$sub$src/fpu_FDIV.sv:112$199 ($sub).
+Removed top 1 bits (of 28) from port Y of cell DIV.$sub$src/fpu_FDIV.sv:112$199 ($sub).
+Removed top 2 bits (of 18) from mux cell DIV.$ternary$src/fpu_FDIV.sv:115$200 ($mux).
+Removed top 3 bits (of 16) from port B of cell DIV.$ge$src/fpu_FDIV.sv:116$201 ($ge).
+Removed top 4 bits (of 16) from port B of cell DIV.$ge$src/fpu_FDIV.sv:117$202 ($ge).
+Removed top 3 bits (of 16) from port B of cell DIV.$lt$src/fpu_FDIV.sv:117$203 ($lt).
+Removed top 31 bits (of 32) from port B of cell DIV.$gt$src/fpu_FDIV.sv:118$205 ($gt).
+Removed top 4 bits (of 16) from port B of cell DIV.$lt$src/fpu_FDIV.sv:118$206 ($lt).
+Removed top 31 bits (of 32) from port B of cell DIV.$lt$src/fpu_FDIV.sv:120$209 ($lt).
+Removed top 13 bits (of 15) from port B of cell DIV.$add$src/fpu_FDIV.sv:127$221 ($add).
+Removed top 3 bits (of 16) from port B of cell DIV.$gt$src/fpu_FDIV.sv:127$222 ($gt).
+Removed top 14 bits (of 15) from port B of cell DIV.$add$src/fpu_FDIV.sv:128$223 ($add).
+Removed top 4 bits (of 16) from port B of cell DIV.$gt$src/fpu_FDIV.sv:128$224 ($gt).
+Removed top 14 bits (of 15) from port B of cell DIV.$sub$src/fpu_FDIV.sv:131$225 ($sub).
+Removed top 4 bits (of 16) from port A of cell DIV.$neg$src/fpu_FDIV.sv:131$226 ($neg).
+Converting cell DIV.$neg$src/fpu_FDIV.sv:131$226 ($neg) from signed to unsigned.
+Removed top 1 bits (of 12) from port A of cell DIV.$neg$src/fpu_FDIV.sv:131$226 ($neg).
+Removed top 13 bits (of 15) from port B of cell DIV.$sub$src/fpu_FDIV.sv:132$228 ($sub).
+Removed top 3 bits (of 16) from port A of cell DIV.$neg$src/fpu_FDIV.sv:132$229 ($neg).
+Converting cell DIV.$neg$src/fpu_FDIV.sv:132$229 ($neg) from signed to unsigned.
+Removed top 1 bits (of 13) from port A of cell DIV.$neg$src/fpu_FDIV.sv:132$229 ($neg).
+Removed top 13 bits (of 15) from port B of cell DIV.$sub$src/fpu_FDIV.sv:133$231 ($sub).
+Removed top 24 bits (of 25) from port B of cell DIV.$or$src/fpu_FDIV.sv:134$232 ($or).
+Removed top 6 bits (of 7) from port B of cell DIV.$sub$src/fpu_FDIV.sv:138$233 ($sub).
+Removed top 31 bits (of 32) from port B of cell DIV.$add$src/fpu_FDIV.sv:146$241 ($add).
+Removed top 25 bits (of 32) from port Y of cell DIV.$add$src/fpu_FDIV.sv:146$241 ($add).
+Removed top 24 bits (of 25) from port A of cell DIV.$shl$src/fpu_FDIV.sv:148$242 ($shl).
+Removed top 2 bits (of 25) from mux cell DIV.$ternary$src/fpu_FDIV.sv:156$248 ($mux).
+Removed top 1 bits (of 11) from port A of cell DIV.$add$src/fpu_FDIV.sv:171$255 ($add).
+Removed top 10 bits (of 11) from port B of cell DIV.$add$src/fpu_FDIV.sv:171$255 ($add).
+Removed top 31 bits (of 32) from port B of cell DIV.$add$src/fpu_FDIV.sv:178$260 ($add).
+Removed top 24 bits (of 32) from port Y of cell DIV.$add$src/fpu_FDIV.sv:178$260 ($add).
+Removed top 24 bits (of 32) from mux cell DIV.$ternary$src/fpu_FDIV.sv:178$262 ($mux).
+Removed top 25 bits (of 32) from mux cell DIV.$ternary$src/fpu_FDIV.sv:177$264 ($mux).
+Removed top 1 bits (of 16) from mux cell DIV.$procmux$285 ($mux).
+Removed top 1 bits (of 16) from mux cell DIV.$procmux$291 ($mux).
+Removed top 1 bits (of 5) from mux cell DIV.$procmux$420 ($pmux).
+Removed top 4 bits (of 5) from port B of cell DIV.$procmux$426_CMP0 ($eq).
+Removed top 3 bits (of 4) from port B of cell DIV.$procmux$427_CMP0 ($eq).
+Removed top 2 bits (of 3) from port B of cell DIV.$procmux$428_CMP0 ($eq).
+Removed top 1 bits (of 2) from port B of cell DIV.$procmux$429_CMP0 ($eq).
+Removed top 9 bits (of 10) from port B of cell DIV.$procmux$433_CMP0 ($eq).
+Removed top 1 bits (of 11) from mux cell DIV.$procmux$432 ($pmux).
+Removed top 8 bits (of 9) from port B of cell DIV.$procmux$434_CMP0 ($eq).
+Removed top 7 bits (of 8) from port B of cell DIV.$procmux$435_CMP0 ($eq).
+Removed top 6 bits (of 7) from port B of cell DIV.$procmux$436_CMP0 ($eq).
+Removed top 5 bits (of 6) from port B of cell DIV.$procmux$437_CMP0 ($eq).
+Removed top 9 bits (of 10) from port B of cell DIV.$procmux$445_CMP0 ($eq).
+Removed top 1 bits (of 5) from mux cell DIV.$procmux$444 ($pmux).
+Removed top 8 bits (of 9) from port B of cell DIV.$procmux$446_CMP0 ($eq).
+Removed top 7 bits (of 8) from port B of cell DIV.$procmux$447_CMP0 ($eq).
+Removed top 6 bits (of 7) from port B of cell DIV.$procmux$448_CMP0 ($eq).
+Removed top 5 bits (of 6) from port B of cell DIV.$procmux$449_CMP0 ($eq).
+Removed top 4 bits (of 5) from port B of cell DIV.$procmux$450_CMP0 ($eq).
+Removed top 3 bits (of 4) from port B of cell DIV.$procmux$451_CMP0 ($eq).
+Removed top 2 bits (of 3) from port B of cell DIV.$procmux$452_CMP0 ($eq).
+Removed top 1 bits (of 2) from port B of cell DIV.$procmux$453_CMP0 ($eq).
+Removed top 1 bits (of 11) from mux cell DIV.$procmux$456 ($pmux).
+Removed top 2 bits (of 25) from port Y of cell DIV.$shr$src/fpu_FDIV.sv:154$247 ($shr).
+Removed top 1 bits (of 8) from mux cell DIV.$ternary$src/fpu_FDIV.sv:178$262 ($mux).
+Removed top 1 bits (of 16) from mux cell DIV.$ternary$src/fpu_FDIV.sv:202$283 ($mux).
+Removed top 1 bits (of 8) from port Y of cell DIV.$add$src/fpu_FDIV.sv:178$260 ($add).
+Removed top 25 bits (of 32) from wire DIV.$ternary$src/fpu_FDIV.sv:178$262_Y.
+Removed top 25 bits (of 32) from wire DIV.$add$src/fpu_FDIV.sv:178$260_Y.
+Removed top 2 bits (of 25) from wire DIV.underflow_man.
+Removed top 2 bits (of 25) from wire DIV.underflow_prod.
+Removed top 4 bits (of 16) from wire DIV.B14x2.
+Removed top 2 bits (of 26) from wire DIV.shifted_A.
+Removed top 1 bits (of 5) from wire DIV.shift_amtB.
+Removed top 1 bits (of 5) from wire DIV.shift_amtA.
+Removed top 1 bits (of 11) from wire DIV.sub_manB.
+Removed top 1 bits (of 11) from wire DIV.sub_manA.
+
+3.12. Executing PEEPOPT pass (run peephole optimizers).
+
+3.13. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+Removed 0 unused cells and 13 unused wires.
+<suppressed ~1 debug messages>
+
+3.14. Executing ALUMACC pass (create $alu and $macc cells).
+Extracting $alu and $macc cells in module DIV:
+  creating $macc model for $add$src/fpu_FDIV.sv:178$260 ($add).
+  creating $macc model for $add$src/fpu_FDIV.sv:171$255 ($add).
+  creating $macc model for $sub$src/fpu_FDIV.sv:148$243 ($sub).
+  creating $macc model for $add$src/fpu_FDIV.sv:146$241 ($add).
+  creating $macc model for $neg$src/fpu_FDIV.sv:145$239 ($neg).
+  creating $macc model for $sub$src/fpu_FDIV.sv:138$233 ($sub).
+  creating $macc model for $sub$src/fpu_FDIV.sv:133$231 ($sub).
+  creating $macc model for $neg$src/fpu_FDIV.sv:132$229 ($neg).
+  creating $macc model for $sub$src/fpu_FDIV.sv:132$228 ($sub).
+  creating $macc model for $neg$src/fpu_FDIV.sv:131$226 ($neg).
+  creating $macc model for $sub$src/fpu_FDIV.sv:131$225 ($sub).
+  creating $macc model for $add$src/fpu_FDIV.sv:128$223 ($add).
+  creating $macc model for $add$src/fpu_FDIV.sv:127$221 ($add).
+  creating $macc model for $sub$src/fpu_FDIV.sv:112$199 ($sub).
+  creating $macc model for $mul$src/fpu_FDIV.sv:110$198 ($mul).
+  creating $macc model for $mul$src/fpu_FDIV.sv:108$197 ($mul).
+  creating $macc model for $add$src/fpu_FDIV.sv:84$195 ($add).
+  creating $macc model for $sub$src/fpu_FDIV.sv:84$194 ($sub).
+  creating $macc model for $sub$src/fpu_FDIV.sv:70$189 ($sub).
+  creating $macc model for $sub$src/fpu_FDIV.sv:69$188 ($sub).
+  merging $macc model for $sub$src/fpu_FDIV.sv:84$194 into $add$src/fpu_FDIV.sv:84$195.
+  merging $macc model for $mul$src/fpu_FDIV.sv:110$198 into $sub$src/fpu_FDIV.sv:112$199.
+  creating $alu model for $macc $sub$src/fpu_FDIV.sv:70$189.
+  creating $alu model for $macc $sub$src/fpu_FDIV.sv:69$188.
+  creating $alu model for $macc $add$src/fpu_FDIV.sv:127$221.
+  creating $alu model for $macc $add$src/fpu_FDIV.sv:128$223.
+  creating $alu model for $macc $sub$src/fpu_FDIV.sv:131$225.
+  creating $alu model for $macc $neg$src/fpu_FDIV.sv:131$226.
+  creating $alu model for $macc $sub$src/fpu_FDIV.sv:132$228.
+  creating $alu model for $macc $neg$src/fpu_FDIV.sv:132$229.
+  creating $alu model for $macc $sub$src/fpu_FDIV.sv:133$231.
+  creating $alu model for $macc $sub$src/fpu_FDIV.sv:138$233.
+  creating $alu model for $macc $neg$src/fpu_FDIV.sv:145$239.
+  creating $alu model for $macc $add$src/fpu_FDIV.sv:146$241.
+  creating $alu model for $macc $sub$src/fpu_FDIV.sv:148$243.
+  creating $alu model for $macc $add$src/fpu_FDIV.sv:171$255.
+  creating $alu model for $macc $add$src/fpu_FDIV.sv:178$260.
+  creating $macc cell for $mul$src/fpu_FDIV.sv:108$197: $auto$alumacc.cc:382:replace_macc$477
+  creating $macc cell for $add$src/fpu_FDIV.sv:84$195: $auto$alumacc.cc:382:replace_macc$478
+  creating $macc cell for $sub$src/fpu_FDIV.sv:112$199: $auto$alumacc.cc:382:replace_macc$479
+  creating $alu model for $gt$src/fpu_FDIV.sv:128$224 ($gt): new $alu
+  creating $alu model for $gt$src/fpu_FDIV.sv:127$222 ($gt): new $alu
+  creating $alu model for $ge$src/fpu_FDIV.sv:121$216 ($ge): new $alu
+  creating $alu model for $lt$src/fpu_FDIV.sv:121$214 ($lt): new $alu
+  creating $alu model for $ge$src/fpu_FDIV.sv:120$211 ($ge): merged with $lt$src/fpu_FDIV.sv:121$214.
+  creating $alu model for $lt$src/fpu_FDIV.sv:120$209 ($lt): new $alu
+  creating $alu model for $lt$src/fpu_FDIV.sv:118$206 ($lt): merged with $gt$src/fpu_FDIV.sv:128$224.
+  creating $alu model for $gt$src/fpu_FDIV.sv:118$205 ($gt): merged with $lt$src/fpu_FDIV.sv:120$209.
+  creating $alu model for $lt$src/fpu_FDIV.sv:117$203 ($lt): merged with $gt$src/fpu_FDIV.sv:127$222.
+  creating $alu model for $ge$src/fpu_FDIV.sv:117$202 ($ge): merged with $gt$src/fpu_FDIV.sv:128$224.
+  creating $alu model for $ge$src/fpu_FDIV.sv:116$201 ($ge): merged with $gt$src/fpu_FDIV.sv:127$222.
+  creating $alu model for $ne$src/fpu_FDIV.sv:132$230 ($ne): merged with $ge$src/fpu_FDIV.sv:121$216.
+  creating $alu model for $ne$src/fpu_FDIV.sv:131$227 ($ne): merged with $lt$src/fpu_FDIV.sv:121$214.
+  creating $alu cell for $lt$src/fpu_FDIV.sv:120$209, $gt$src/fpu_FDIV.sv:118$205: $auto$alumacc.cc:512:replace_alu$485
+  creating $alu cell for $lt$src/fpu_FDIV.sv:121$214, $ge$src/fpu_FDIV.sv:120$211, $ne$src/fpu_FDIV.sv:131$227: $auto$alumacc.cc:512:replace_alu$498
+  creating $alu cell for $ge$src/fpu_FDIV.sv:121$216, $ne$src/fpu_FDIV.sv:132$230: $auto$alumacc.cc:512:replace_alu$515
+  creating $alu cell for $gt$src/fpu_FDIV.sv:127$222, $lt$src/fpu_FDIV.sv:117$203, $ge$src/fpu_FDIV.sv:116$201: $auto$alumacc.cc:512:replace_alu$532
+  creating $alu cell for $gt$src/fpu_FDIV.sv:128$224, $lt$src/fpu_FDIV.sv:118$206, $ge$src/fpu_FDIV.sv:117$202: $auto$alumacc.cc:512:replace_alu$547
+  creating $alu cell for $add$src/fpu_FDIV.sv:178$260: $auto$alumacc.cc:512:replace_alu$562
+  creating $alu cell for $add$src/fpu_FDIV.sv:171$255: $auto$alumacc.cc:512:replace_alu$565
+  creating $alu cell for $sub$src/fpu_FDIV.sv:148$243: $auto$alumacc.cc:512:replace_alu$568
+  creating $alu cell for $add$src/fpu_FDIV.sv:146$241: $auto$alumacc.cc:512:replace_alu$571
+  creating $alu cell for $neg$src/fpu_FDIV.sv:145$239: $auto$alumacc.cc:512:replace_alu$574
+  creating $alu cell for $sub$src/fpu_FDIV.sv:138$233: $auto$alumacc.cc:512:replace_alu$577
+  creating $alu cell for $sub$src/fpu_FDIV.sv:133$231: $auto$alumacc.cc:512:replace_alu$580
+  creating $alu cell for $neg$src/fpu_FDIV.sv:132$229: $auto$alumacc.cc:512:replace_alu$583
+  creating $alu cell for $sub$src/fpu_FDIV.sv:132$228: $auto$alumacc.cc:512:replace_alu$586
+  creating $alu cell for $neg$src/fpu_FDIV.sv:131$226: $auto$alumacc.cc:512:replace_alu$589
+  creating $alu cell for $sub$src/fpu_FDIV.sv:131$225: $auto$alumacc.cc:512:replace_alu$592
+  creating $alu cell for $add$src/fpu_FDIV.sv:128$223: $auto$alumacc.cc:512:replace_alu$595
+  creating $alu cell for $add$src/fpu_FDIV.sv:127$221: $auto$alumacc.cc:512:replace_alu$598
+  creating $alu cell for $sub$src/fpu_FDIV.sv:69$188: $auto$alumacc.cc:512:replace_alu$601
+  creating $alu cell for $sub$src/fpu_FDIV.sv:70$189: $auto$alumacc.cc:512:replace_alu$604
+  created 20 $alu and 3 $macc cells.
+
+3.15. Executing SHARE pass (SAT-based resource sharing).
+Found 3 cells in module DIV that may be considered for resource sharing.
+  Analyzing resource sharing options for $mul$src/fpu_FDIV.sv:110$198 ($mul):
+    Found cell that is never activated: $mul$src/fpu_FDIV.sv:110$198
+    Cell is never active. Sharing is pointless, we simply remove it.
+  Analyzing resource sharing options for $shl$src/fpu_FDIV.sv:148$242 ($shl):
+    Found 4 activation_patterns using ctrl signal { $or$src/fpu_FDIV.sv:202$282_Y \overflow \tentative_S \underflow }.
+    No candidates found.
+  Analyzing resource sharing options for $shr$src/fpu_FDIV.sv:154$247 ($shr):
+    Found 3 activation_patterns using ctrl signal { $or$src/fpu_FDIV.sv:202$282_Y $and$src/fpu_FDIV.sv:175$256_Y \overflow \tentative_S \underflow }.
+    No candidates found.
+Removing 1 cells in module DIV:
+  Removing cell $mul$src/fpu_FDIV.sv:110$198 ($mul).
+
+3.16. Executing OPT pass (performing simple optimizations).
+
+3.16.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+<suppressed ~3 debug messages>
+
+3.16.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 159 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.16.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \DIV..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~53 debug messages>
+
+3.16.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \DIV.
+Performed a total of 0 changes.
+
+3.16.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 159 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.16.6. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.16.7. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+Removed 1 unused cells and 19 unused wires.
+<suppressed ~3 debug messages>
+
+3.16.8. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.16.9. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.16.10. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \DIV..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~53 debug messages>
+
+3.16.11. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \DIV.
+Performed a total of 0 changes.
+
+3.16.12. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 157 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.16.13. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.16.14. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.16.15. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.16.16. Finished fast OPT passes. (There is nothing left to do.)
+
+3.17. Executing MEMORY pass.
+
+3.17.1. Executing OPT_MEM pass (optimize memories).
+Performed a total of 0 transformations.
+
+3.17.2. Executing OPT_MEM_PRIORITY pass (removing unnecessary memory write priority relations).
+Performed a total of 0 transformations.
+
+3.17.3. Executing OPT_MEM_FEEDBACK pass (finding memory read-to-write feedback paths).
+
+3.17.4. Executing MEMORY_BMUX2ROM pass (converting muxes to ROMs).
+
+3.17.5. Executing MEMORY_DFF pass (merging $dff cells to $memrd).
+
+3.17.6. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.17.7. Executing MEMORY_SHARE pass (consolidating $memrd/$memwr cells).
+
+3.17.8. Executing OPT_MEM_WIDEN pass (optimize memories where all ports are wide).
+Performed a total of 0 transformations.
+
+3.17.9. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.17.10. Executing MEMORY_COLLECT pass (generating $mem cells).
+
+3.18. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.19. Executing OPT pass (performing simple optimizations).
+
+3.19.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+<suppressed ~13 debug messages>
+
+3.19.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 160 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.19.3. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.19.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+Removed 1 unused cells and 6 unused wires.
+<suppressed ~2 debug messages>
+
+3.19.5. Finished fast OPT passes.
+
+3.20. Executing MEMORY_MAP pass (converting memories to logic and flip-flops).
+
+3.21. Executing OPT pass (performing simple optimizations).
+
+3.21.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.21.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 159 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.21.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \DIV..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~52 debug messages>
+
+3.21.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \DIV.
+    Consolidated identical input bits for $mux cell $procmux$285:
+      Old ports: A=15'000000000000000, B=15'111110000000000, Y=$2\special_ans[15:0] [14:0]
+      New ports: A=1'0, B=1'1, Y=$2\special_ans[15:0] [10]
+      New connections: { $2\special_ans[15:0] [14:11] $2\special_ans[15:0] [9:0] } = { $2\special_ans[15:0] [10] $2\special_ans[15:0] [10] $2\special_ans[15:0] [10] $2\special_ans[15:0] [10] 10'0000000000 }
+    Consolidated identical input bits for $mux cell $ternary$src/fpu_FDIV.sv:139$235:
+      Old ports: A={ 1'0 \q_final [12:0] 9'000000000 \sticky_final 1'0 }, B={ \q_final [14] 1'1 \q_final [12:0] 9'000000000 \sticky_final }, Y=\normalised_prod
+      New ports: A={ 1'0 \q_final [12:0] 1'0 \sticky_final 1'0 }, B={ \q_final [14] 1'1 \q_final [12:0] 1'0 \sticky_final }, Y={ \normalised_prod [24:10] \normalised_prod [1:0] }
+      New connections: \normalised_prod [9:2] = 8'00000000
+    Consolidated identical input bits for $mux cell $ternary$src/fpu_FDIV.sv:115$200:
+      Old ports: A={ 2'00 \diff [13:0] }, B={ 2'11 \diff [13:0] }, Y=\diff_lo
+      New ports: A=1'0, B=1'1, Y=\diff_lo [14]
+      New connections: { \diff_lo [15] \diff_lo [13:0] } = { \diff_lo [14] \diff [13:0] }
+    Consolidated identical input bits for $mux cell $ternary$src/fpu_FDIV.sv:81$193:
+      Old ports: A={ 1'1 \b [9:0] }, B={ 1'1 \sub_manB }, Y=\final_manB
+      New ports: A=\b [9:0], B=\sub_manB, Y=\final_manB [9:0]
+      New connections: \final_manB [10] = 1'1
+    Consolidated identical input bits for $mux cell $ternary$src/fpu_FDIV.sv:80$192:
+      Old ports: A={ 2'00 \b [14:10] }, B={ \sub_expB [5] \sub_expB [5:0] }, Y=\final_expB
+      New ports: A={ 1'0 \b [14:10] }, B=\sub_expB [5:0], Y=\final_expB [5:0]
+      New connections: \final_expB [6] = \final_expB [5]
+    Consolidated identical input bits for $mux cell $ternary$src/fpu_FDIV.sv:78$191:
+      Old ports: A={ 1'1 \a [9:0] }, B={ 1'1 \sub_manA }, Y=\final_manA
+      New ports: A=\a [9:0], B=\sub_manA, Y=\final_manA [9:0]
+      New connections: \final_manA [10] = 1'1
+    Consolidated identical input bits for $mux cell $ternary$src/fpu_FDIV.sv:77$190:
+      Old ports: A={ 2'00 \a [14:10] }, B={ \sub_expA [5] \sub_expA [5:0] }, Y=\final_expA
+      New ports: A={ 1'0 \a [14:10] }, B=\sub_expA [5:0], Y=\final_expA [5:0]
+      New connections: \final_expA [6] = \final_expA [5]
+  Optimizing cells in module \DIV.
+    Consolidated identical input bits for $mux cell $procmux$291:
+      Old ports: A=$2\special_ans[15:0] [14:0], B=15'111111000000000, Y=\special_ans [14:0]
+      New ports: A={ $2\special_ans[15:0] [10] 1'0 }, B=2'11, Y=\special_ans [10:9]
+      New connections: { \special_ans [14:11] \special_ans [8:0] } = { \special_ans [10] \special_ans [10] \special_ans [10] \special_ans [10] 9'000000000 }
+  Optimizing cells in module \DIV.
+Performed a total of 8 changes.
+
+3.21.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 159 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.21.6. Executing OPT_SHARE pass.
+
+3.21.7. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.21.8. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.21.9. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+<suppressed ~39 debug messages>
+
+3.21.10. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.21.11. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \DIV..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~49 debug messages>
+
+3.21.12. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \DIV.
+    New input vector for $reduce_and cell $auto$alumacc.cc:92:get_eq$492: $auto$opt_expr.cc:206:group_cell_inputs$620
+  Optimizing cells in module \DIV.
+Performed a total of 1 changes.
+
+3.21.13. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 160 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Computing hashes of 157 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+<suppressed ~13 debug messages>
+Removed a total of 3 cells.
+
+3.21.14. Executing OPT_SHARE pass.
+
+3.21.15. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.21.16. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+Removed 1 unused cells and 28 unused wires.
+<suppressed ~2 debug messages>
+
+3.21.17. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.21.18. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.21.19. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \DIV..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~49 debug messages>
+
+3.21.20. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \DIV.
+Performed a total of 0 changes.
+
+3.21.21. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 156 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.21.22. Executing OPT_SHARE pass.
+
+3.21.23. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.21.24. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+
+3.21.25. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.21.26. Finished fast OPT passes. (There is nothing left to do.)
+
+3.22. Executing TECHMAP pass (map to technology primitives).
+
+3.22.1. Executing Verilog-2005 frontend: /usr/bin/../share/yosys/techmap.v
+Parsing Verilog input from `/usr/bin/../share/yosys/techmap.v' to AST representation.
+Generating RTLIL representation for module `\_90_simplemap_bool_ops'.
+Generating RTLIL representation for module `\_90_simplemap_reduce_ops'.
+Generating RTLIL representation for module `\_90_simplemap_logic_ops'.
+Generating RTLIL representation for module `\_90_simplemap_compare_ops'.
+Generating RTLIL representation for module `\_90_simplemap_various'.
+Generating RTLIL representation for module `\_90_simplemap_registers'.
+Generating RTLIL representation for module `\_90_shift_ops_shr_shl_sshl_sshr'.
+Generating RTLIL representation for module `\_90_shift_shiftx'.
+Generating RTLIL representation for module `\_90_fa'.
+Generating RTLIL representation for module `\_90_lcu_brent_kung'.
+Generating RTLIL representation for module `\_90_alu'.
+Generating RTLIL representation for module `\_90_macc'.
+Generating RTLIL representation for module `\_90_alumacc'.
+Generating RTLIL representation for module `$__div_mod_u'.
+Generating RTLIL representation for module `$__div_mod_trunc'.
+Generating RTLIL representation for module `\_90_div'.
+Generating RTLIL representation for module `\_90_mod'.
+Generating RTLIL representation for module `$__div_mod_floor'.
+Generating RTLIL representation for module `\_90_divfloor'.
+Generating RTLIL representation for module `\_90_modfloor'.
+Generating RTLIL representation for module `\_90_pow'.
+Generating RTLIL representation for module `\_90_demux'.
+Generating RTLIL representation for module `\_90_lut'.
+Generating RTLIL representation for module `$connect'.
+Generating RTLIL representation for module `$input_port'.
+Successfully finished Verilog frontend.
+
+3.22.2. Continuing TECHMAP pass.
+Using extmapper simplemap for cells of type $not.
+Using extmapper simplemap for cells of type $and.
+Using template $paramod$ec32b97001540459632a2df9accd677d3703ea0f\_90_alu for cells of type $alu.
+Using template $paramod$3ace65afedd5f6a6849996376b6c02262a5f23eb\_90_alu for cells of type $alu.
+Using template $paramod$713617589782cfade849bb573b5c36106c4b708f\_90_alu for cells of type $alu.
+Using template $paramod$3b7577489eb4433b1d5620cab7f3794743dee5ea\_90_alu for cells of type $alu.
+Using template $paramod$675ee3ed071b156aa661bdfa838b7e469d095ac0\_90_alu for cells of type $alu.
+Using template $paramod$1ed7ec530b1ba361931392f2f8504f82ccdfecaa\_90_alu for cells of type $alu.
+Using template $paramod$b80be600e98e5b39498758407c5ba39da15cbc3d\_90_alu for cells of type $alu.
+Using template $paramod$10ed987432f06055e5279101f9ec60a49861b43c\_90_alu for cells of type $alu.
+Using template $paramod$38e8498ccdc425801fe5312e427e3cf0d9089c58\_90_alu for cells of type $alu.
+Using template $paramod$103b4016182df467cceab67bcf3e18e6361ec0fd\_90_alu for cells of type $alu.
+Using template $paramod$constmap:4bb24d16662a2b5ccf18771d20ce42eb5ac3cc4e$paramod$8dfc547990f83242a9ad04a380772cf2f3616d50\_90_shift_ops_shr_shl_sshl_sshr for cells of type $shl.
+Using template $paramod$6b2e55a5f89bfecc6aebd640439f7b15a0e51965\_90_alu for cells of type $alu.
+Using template $paramod$1bb7aebaa32f16dab78ad6c76561e8e43e165fdb\_90_alu for cells of type $alu.
+Using extmapper simplemap for cells of type $reduce_or.
+Using extmapper simplemap for cells of type $or.
+Using extmapper simplemap for cells of type $reduce_and.
+Using extmapper simplemap for cells of type $xor.
+Using template $paramod$10a7fddc8a601bc8f4a5ffaf8b08ba4de3b4ca36\_90_alu for cells of type $alu.
+Using template $paramod$7a388946f99c976d91aa4eb496f643daf2c9c177\_90_alu for cells of type $alu.
+Using template $paramod$f9c19ff4cb4a16225c995ba7d19f84b51b027f23\_90_alu for cells of type $alu.
+Using template $paramod$d4c0c20b0ee59f495e14575c4397dc0a6dd9e8e6\_90_alu for cells of type $alu.
+Using extmapper maccmap for cells of type $macc_v2.
+  sub \initial_prod [24:10] * { 1'1 \final_manB [9:0] } (15x11 bits, unsigned)
+  add { 1'1 \final_manA [9:0] 13'0000000000000 } (24 bits, unsigned)
+  add { \final_expA [5] \final_expA [5:0] } (7 bits, unsigned)
+  sub { \final_expB [5] \final_expB [5:0] } (7 bits, unsigned)
+  add 7'0001111 (7 bits, unsigned)
+  add \reciprocalB * { 1'1 \final_manA [9:0] } (14x11 bits, unsigned)
+Using extmapper simplemap for cells of type $logic_not.
+Using extmapper simplemap for cells of type $eq.
+Using template $paramod$constmap:92a1671a8c85d587e718377959d8f17797dd47b1$paramod$2c82f50b47e93efc08dad858bcc0f49cdc8ae793\_90_shift_ops_shr_shl_sshl_sshr for cells of type $shr.
+Using extmapper simplemap for cells of type $pmux.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000011001 for cells of type $fa.
+Using template $paramod$4868d58a04723871777326409a611fa912defcd8\_90_alu for cells of type $alu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000000111 for cells of type $fa.
+Using template $paramod$dbcdc7e8aa1a4080cea2deda6fdc8772064f4d90\_90_alu for cells of type $alu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000011011 for cells of type $fa.
+Using template $paramod$f02bbbf710bba6238f4bdfa41b3051acfe2064a8\_90_alu for cells of type $alu.
+Using extmapper simplemap for cells of type $pos.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000011001 for cells of type $lcu.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000000111 for cells of type $lcu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000001111 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000001111 for cells of type $lcu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000001110 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000001110 for cells of type $lcu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000000101 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000000101 for cells of type $lcu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000001011 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000001011 for cells of type $lcu.
+Using template $paramod\_90_fa\WIDTH=32'00000000000000000000000000010000 for cells of type $fa.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000010000 for cells of type $lcu.
+Using template $paramod\_90_lcu_brent_kung\WIDTH=32'00000000000000000000000000011011 for cells of type $lcu.
+No more expansions possible.
+<suppressed ~3950 debug messages>
+
+3.23. Executing OPT pass (performing simple optimizations).
+
+3.23.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+<suppressed ~3955 debug messages>
+
+3.23.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 4536 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Computing hashes of 4344 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Computing hashes of 4308 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Computing hashes of 4292 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Computing hashes of 4288 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Computing hashes of 4286 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+<suppressed ~750 debug messages>
+Removed a total of 250 cells.
+
+3.23.3. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.23.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+Removed 298 unused cells and 1865 unused wires.
+<suppressed ~300 debug messages>
+
+3.23.5. Finished fast OPT passes.
+
+3.24. Executing ABC pass (technology mapping using ABC).
+
+3.24.1. Extracting gate netlist of module `\DIV' to `<abc-temp-dir>/input.blif'..
+
+3.24.1.1. Executed ABC.
+Extracted 3987 gates and 4035 wires to a netlist network with 46 inputs and 26 outputs.
+Running ABC script: <abc-temp-dir>/abc.script
+ABC: ======== ABC command line "source <abc-temp-dir>/abc.script"
+ABC: + read_blif <abc-temp-dir>/input.blif 
+ABC: + read_library <abc-temp-dir>/stdcells.genlib 
+ABC: + strash 
+ABC: + &get -n 
+ABC: + &fraig -x 
+ABC: + &put 
+ABC: + scorr 
+ABC: Warning: The network is combinational (run "fraig" or "fraig_sweep").
+ABC: + dc2 
+ABC: + dretime 
+ABC: + strash 
+ABC: + &get -n 
+ABC: + &dch -f 
+ABC: + &nf 
+ABC: + &put 
+ABC: + write_blif <abc-temp-dir>/output.blif 
+
+3.24.1.2. Re-integrating ABC results.
+ABC RESULTS:               AND cells:      629
+ABC RESULTS:            ANDNOT cells:       94
+ABC RESULTS:               MUX cells:       89
+ABC RESULTS:              NAND cells:     1244
+ABC RESULTS:               NOR cells:       59
+ABC RESULTS:               NOT cells:       26
+ABC RESULTS:                OR cells:      170
+ABC RESULTS:             ORNOT cells:       89
+ABC RESULTS:              XNOR cells:      134
+ABC RESULTS:               XOR cells:      507
+ABC RESULTS:        internal signals:     3963
+ABC RESULTS:           input signals:       46
+ABC RESULTS:          output signals:       26
+Removing temp directory.
+Removing global temp directory.
+
+3.25. Executing OPT pass (performing simple optimizations).
+
+3.25.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module DIV.
+
+3.25.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\DIV'.
+Computing hashes of 3042 cells of `\DIV'.
+Finding duplicate cells in `\DIV'.
+Removed a total of 0 cells.
+
+3.25.3. Executing OPT_DFF pass (perform DFF optimizations).
+
+3.25.4. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \DIV..
+Removed 0 unused cells and 1101 unused wires.
+<suppressed ~47 debug messages>
+
+3.25.5. Finished fast OPT passes.
+
+3.26. Executing HIERARCHY pass (managing design hierarchy).
+Attribute `top' found on module `DIV'. Setting top module to DIV.
+
+3.26.1. Analyzing design hierarchy..
+Top module:  \DIV
+
+3.26.2. Analyzing design hierarchy..
+Top module:  \DIV
+Removed 0 unused modules.
+
+3.27. Printing statistics.
+
+=== DIV ===
+
+        +----------Local Count, excluding submodules.
+        | 
+     3040 wires
+     3350 wire bits
+       25 public wires
+      335 public wire bits
+        3 ports
+       48 port bits
+     3042 cells
+       94   $_ANDNOT_
+      629   $_AND_
+       89   $_MUX_
+     1244   $_NAND_
+       59   $_NOR_
+       26   $_NOT_
+       89   $_ORNOT_
+      170   $_OR_
+      134   $_XNOR_
+      507   $_XOR_
+        1   reciprocal_rom
+
+3.28. Executing CHECK pass (checking for obvious problems).
+Checking module DIV...
+Found and reported 0 problems.
+
+4. Executing Liberty frontend: sky130_fd_sc_hd__tt_025C_1v80.lib
+Imported 428 cell types from liberty file.
+
+5. Executing DFFLIBMAP pass (mapping DFF cells to sequential cells from liberty file).
+  cell sky130_fd_sc_hd__dfxtp_1 (noninv, pins=3, area=20.02) is a direct match for cell type $_DFF_P_.
+  cell sky130_fd_sc_hd__dfrtn_1 (noninv, pins=4, area=25.02) is a direct match for cell type $_DFF_NN0_.
+  cell sky130_fd_sc_hd__dfrtp_1 (noninv, pins=4, area=25.02) is a direct match for cell type $_DFF_PN0_.
+  cell sky130_fd_sc_hd__dfstp_2 (noninv, pins=4, area=26.28) is a direct match for cell type $_DFF_PN1_.
+  cell sky130_fd_sc_hd__edfxtp_1 (noninv, pins=4, area=30.03) is a direct match for cell type $_DFFE_PP_.
+  cell sky130_fd_sc_hd__dfbbn_1 (noninv, pins=6, area=32.53) is a direct match for cell type $_DFFSR_NNN_.
+  cell sky130_fd_sc_hd__dfbbp_1 (noninv, pins=6, area=32.53) is a direct match for cell type $_DFFSR_PNN_.
+  final dff cell mappings:
+    unmapped dff cell: $_DFF_N_
+    \sky130_fd_sc_hd__dfxtp_1 _DFF_P_ (.CLK( C), .D( D), .Q( Q));
+    \sky130_fd_sc_hd__dfrtn_1 _DFF_NN0_ (.CLK_N( C), .D( D), .Q( Q), .RESET_B( R));
+    unmapped dff cell: $_DFF_NN1_
+    unmapped dff cell: $_DFF_NP0_
+    unmapped dff cell: $_DFF_NP1_
+    \sky130_fd_sc_hd__dfrtp_1 _DFF_PN0_ (.CLK( C), .D( D), .Q( Q), .RESET_B( R));
+    \sky130_fd_sc_hd__dfstp_2 _DFF_PN1_ (.CLK( C), .D( D), .Q( Q), .SET_B( R));
+    unmapped dff cell: $_DFF_PP0_
+    unmapped dff cell: $_DFF_PP1_
+    unmapped dff cell: $_DFFE_NN_
+    unmapped dff cell: $_DFFE_NP_
+    unmapped dff cell: $_DFFE_PN_
+    \sky130_fd_sc_hd__edfxtp_1 _DFFE_PP_ (.CLK( C), .D( D), .DE( E), .Q( Q));
+    \sky130_fd_sc_hd__dfbbn_1 _DFFSR_NNN_ (.CLK_N( C), .D( D), .Q( Q), .Q_N(~Q), .RESET_B( R), .SET_B( S));
+    unmapped dff cell: $_DFFSR_NNP_
+    unmapped dff cell: $_DFFSR_NPN_
+    unmapped dff cell: $_DFFSR_NPP_
+    \sky130_fd_sc_hd__dfbbp_1 _DFFSR_PNN_ (.CLK( C), .D( D), .Q( Q), .Q_N(~Q), .RESET_B( R), .SET_B( S));
+    unmapped dff cell: $_DFFSR_PNP_
+    unmapped dff cell: $_DFFSR_PPN_
+    unmapped dff cell: $_DFFSR_PPP_
+
+5.1. Executing DFFLEGALIZE pass (convert FFs to types supported by the target).
+<suppressed ~24 debug messages>
+Mapping DFF cells in module `\DIV':
+
+6. Executing ABC pass (technology mapping using ABC).
+
+6.1. Extracting gate netlist of module `\DIV' to `<abc-temp-dir>/input.blif'..
+ABC: using cached merged SCL: /tmp/yosys-liberty-scl-cache/yosys_merged_9872f647.scl (1 files)
+
+6.1.1. Executed ABC.
+Extracted 3041 gates and 3087 wires to a netlist network with 46 inputs and 26 outputs.
+Running ABC script: <abc-temp-dir>/abc.script
+ABC: ======== ABC command line "source <abc-temp-dir>/abc.script"
+ABC: + read_blif <abc-temp-dir>/input.blif 
+ABC: + read_scl /tmp/yosys-liberty-scl-cache/yosys_merged_9872f647.scl 
+ABC: Warning: Detected 9 multi-output cells (for example, "sky130_fd_sc_hd__fa_1").
+ABC: + strash 
+ABC: + &get -n 
+ABC: + &fraig -x 
+ABC: + &put 
+ABC: + scorr 
+ABC: Warning: The network is combinational (run "fraig" or "fraig_sweep").
+ABC: + dc2 
+ABC: + dretime 
+ABC: + strash 
+ABC: + &get -n 
+ABC: + &dch -f 
+ABC: + &nf 
+ABC: + &put 
+ABC: + write_blif <abc-temp-dir>/output.blif 
+
+6.1.2. Re-integrating ABC results.
+ABC RESULTS:   sky130_fd_sc_hd__a2111oi_0 cells:        7
+ABC RESULTS:   sky130_fd_sc_hd__a211o_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__a211oi_1 cells:       15
+ABC RESULTS:   sky130_fd_sc_hd__a21bo_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__a21boi_0 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__a21o_1 cells:       20
+ABC RESULTS:   sky130_fd_sc_hd__a21oi_1 cells:      125
+ABC RESULTS:   sky130_fd_sc_hd__a221o_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__a221oi_1 cells:        7
+ABC RESULTS:   sky130_fd_sc_hd__a222oi_1 cells:        9
+ABC RESULTS:   sky130_fd_sc_hd__a22o_1 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__a22oi_1 cells:       19
+ABC RESULTS:   sky130_fd_sc_hd__a2bb2o_1 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__a2bb2oi_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__a311o_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__a311oi_1 cells:        7
+ABC RESULTS:   sky130_fd_sc_hd__a31o_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__a31oi_1 cells:       25
+ABC RESULTS:   sky130_fd_sc_hd__a32o_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__a32oi_1 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__a41o_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__a41oi_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__and2_0 cells:       39
+ABC RESULTS:   sky130_fd_sc_hd__and3_1 cells:       26
+ABC RESULTS:   sky130_fd_sc_hd__and3b_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__and4_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__and4b_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__clkinv_1 cells:       71
+ABC RESULTS:   sky130_fd_sc_hd__lpflow_inputiso1p_1 cells:       36
+ABC RESULTS:   sky130_fd_sc_hd__lpflow_isobufsrc_1 cells:       47
+ABC RESULTS:   sky130_fd_sc_hd__maj3_1 cells:      130
+ABC RESULTS:   sky130_fd_sc_hd__mux2_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__mux2i_1 cells:       25
+ABC RESULTS:   sky130_fd_sc_hd__nand2_1 cells:      302
+ABC RESULTS:   sky130_fd_sc_hd__nand2b_1 cells:       31
+ABC RESULTS:   sky130_fd_sc_hd__nand3_1 cells:       56
+ABC RESULTS:   sky130_fd_sc_hd__nand3b_1 cells:        8
+ABC RESULTS:   sky130_fd_sc_hd__nand4_1 cells:       23
+ABC RESULTS:   sky130_fd_sc_hd__nand4b_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__nand4bb_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__nor2_1 cells:      225
+ABC RESULTS:   sky130_fd_sc_hd__nor2b_1 cells:       10
+ABC RESULTS:   sky130_fd_sc_hd__nor3_1 cells:       95
+ABC RESULTS:   sky130_fd_sc_hd__nor3b_1 cells:       18
+ABC RESULTS:   sky130_fd_sc_hd__nor4_1 cells:       13
+ABC RESULTS:   sky130_fd_sc_hd__nor4b_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__nor4bb_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__o2111a_1 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__o2111ai_1 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__o211a_1 cells:        3
+ABC RESULTS:   sky130_fd_sc_hd__o211ai_1 cells:       22
+ABC RESULTS:   sky130_fd_sc_hd__o21a_1 cells:       19
+ABC RESULTS:   sky130_fd_sc_hd__o21ai_0 cells:      105
+ABC RESULTS:   sky130_fd_sc_hd__o21ba_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__o21bai_1 cells:        5
+ABC RESULTS:   sky130_fd_sc_hd__o221a_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__o221ai_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o22a_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__o22ai_1 cells:       13
+ABC RESULTS:   sky130_fd_sc_hd__o2bb2ai_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o311a_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__o311ai_0 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__o31a_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o31ai_1 cells:       10
+ABC RESULTS:   sky130_fd_sc_hd__o32a_1 cells:        4
+ABC RESULTS:   sky130_fd_sc_hd__o41a_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__o41ai_1 cells:        2
+ABC RESULTS:   sky130_fd_sc_hd__or3_1 cells:       18
+ABC RESULTS:   sky130_fd_sc_hd__or3b_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__or4_1 cells:        6
+ABC RESULTS:   sky130_fd_sc_hd__or4b_1 cells:        1
+ABC RESULTS:   sky130_fd_sc_hd__xnor2_1 cells:      256
+ABC RESULTS:   sky130_fd_sc_hd__xnor3_1 cells:       67
+ABC RESULTS:   sky130_fd_sc_hd__xor2_1 cells:      164
+ABC RESULTS:   sky130_fd_sc_hd__xor3_1 cells:       27
+ABC RESULTS:        internal signals:     3015
+ABC RESULTS:           input signals:       46
+ABC RESULTS:          output signals:       26
+Removing temp directory.
+Removing global temp directory.
+Removed 0 unused cells and 3087 unused wires.
+
+7. Printing statistics.
+
+=== DIV ===
+
+        +----------Local Count, excluding submodules.
+        |        +-Local Area, excluding submodules.
+        |        | 
+     2195        - wires
+     2505        - wire bits
+       25        - public wires
+      335        - public wire bits
+        3        - ports
+       48        - port bits
+     2197 1.55E+04 cells
+        1        -   reciprocal_rom
+        7   61.309   sky130_fd_sc_hd__a2111oi_0
+        4   35.034   sky130_fd_sc_hd__a211o_1
+       15  112.608   sky130_fd_sc_hd__a211oi_1
+        1    10.01   sky130_fd_sc_hd__a21bo_1
+        4   30.029   sky130_fd_sc_hd__a21boi_0
+       20  150.144   sky130_fd_sc_hd__a21o_1
+      125    625.6   sky130_fd_sc_hd__a21oi_1
+        1    10.01   sky130_fd_sc_hd__a221o_1
+        7   61.309   sky130_fd_sc_hd__a221oi_1
+        9   90.086   sky130_fd_sc_hd__a222oi_1
+        6    52.55   sky130_fd_sc_hd__a22o_1
+       19  142.637   sky130_fd_sc_hd__a22oi_1
+        3   30.029   sky130_fd_sc_hd__a2bb2o_1
+        2   17.517   sky130_fd_sc_hd__a2bb2oi_1
+        2   20.019   sky130_fd_sc_hd__a311o_1
+        7   61.309   sky130_fd_sc_hd__a311oi_1
+        4   35.034   sky130_fd_sc_hd__a31o_1
+       25    156.4   sky130_fd_sc_hd__a31oi_1
+        1    10.01   sky130_fd_sc_hd__a32o_1
+        6    52.55   sky130_fd_sc_hd__a32oi_1
+        1    10.01   sky130_fd_sc_hd__a41o_1
+        1    8.758   sky130_fd_sc_hd__a41oi_1
+       39  243.984   sky130_fd_sc_hd__and2_0
+       26  162.656   sky130_fd_sc_hd__and3_1
+        1    8.758   sky130_fd_sc_hd__and3b_1
+        4   35.034   sky130_fd_sc_hd__and4_1
+        1    10.01   sky130_fd_sc_hd__and4b_1
+       71  266.506   sky130_fd_sc_hd__clkinv_1
+       36  225.216   sky130_fd_sc_hd__lpflow_inputiso1p_1
+       47  294.032   sky130_fd_sc_hd__lpflow_isobufsrc_1
+      130  1.3E+03   sky130_fd_sc_hd__maj3_1
+        4   45.043   sky130_fd_sc_hd__mux2_1
+       25   250.24   sky130_fd_sc_hd__mux2i_1
+      302 1.13E+03   sky130_fd_sc_hd__nand2_1
+       31  193.936   sky130_fd_sc_hd__nand2b_1
+       56  280.269   sky130_fd_sc_hd__nand3_1
+        8   60.058   sky130_fd_sc_hd__nand3b_1
+       23  143.888   sky130_fd_sc_hd__nand4_1
+        2   17.517   sky130_fd_sc_hd__nand4b_1
+        1   11.261   sky130_fd_sc_hd__nand4bb_1
+      225   844.56   sky130_fd_sc_hd__nor2_1
+       10    62.56   sky130_fd_sc_hd__nor2b_1
+       95  475.456   sky130_fd_sc_hd__nor3_1
+       18   135.13   sky130_fd_sc_hd__nor3b_1
+       13   81.328   sky130_fd_sc_hd__nor4_1
+        1    8.758   sky130_fd_sc_hd__nor4b_1
+        2   20.019   sky130_fd_sc_hd__nor4bb_1
+        3   33.782   sky130_fd_sc_hd__o2111a_1
+        6    52.55   sky130_fd_sc_hd__o2111ai_1
+        3   30.029   sky130_fd_sc_hd__o211a_1
+       22  165.158   sky130_fd_sc_hd__o211ai_1
+       19  142.637   sky130_fd_sc_hd__o21a_1
+      105  525.504   sky130_fd_sc_hd__o21ai_0
+        2   20.019   sky130_fd_sc_hd__o21ba_1
+        5   37.536   sky130_fd_sc_hd__o21bai_1
+        2   22.522   sky130_fd_sc_hd__o221a_1
+        4   35.034   sky130_fd_sc_hd__o221ai_1
+        2   17.517   sky130_fd_sc_hd__o22a_1
+       13   81.328   sky130_fd_sc_hd__o22ai_1
+        4   35.034   sky130_fd_sc_hd__o2bb2ai_1
+        2   20.019   sky130_fd_sc_hd__o311a_1
+        2   17.517   sky130_fd_sc_hd__o311ai_0
+        4   35.034   sky130_fd_sc_hd__o31a_1
+       10   75.072   sky130_fd_sc_hd__o31ai_1
+        4   40.038   sky130_fd_sc_hd__o32a_1
+        1   11.261   sky130_fd_sc_hd__o41a_1
+        2   17.517   sky130_fd_sc_hd__o41ai_1
+       18  112.608   sky130_fd_sc_hd__or3_1
+        1    8.758   sky130_fd_sc_hd__or3b_1
+        6   45.043   sky130_fd_sc_hd__or4_1
+        1    10.01   sky130_fd_sc_hd__or4b_1
+      256  2242.15   sky130_fd_sc_hd__xnor2_1
+       67 1.51E+03   sky130_fd_sc_hd__xnor3_1
+      164 1.44E+03   sky130_fd_sc_hd__xor2_1
+       27  641.866   sky130_fd_sc_hd__xor3_1
+
+   Area for cell type \reciprocal_rom is unknown!
+
+   Chip area for module '\DIV': 15514.880000
+     of which used for sequential elements: 0.000000 (0.00%)
+
+8. Executing Verilog backend.
+
+8.1. Executing BMUXMAP pass.
+
+8.2. Executing DEMUXMAP pass.
+Dumping module `\DIV'.
+
+9. Executing SETUNDEF pass (replace undef values with defined constants).
+
+10. Executing SPLITNETS pass (splitting up multi-bit signals).
+
+Warnings: 1 unique messages, 1 total
+End of script. Logfile hash: e1f7deba0b, time: 2.27s, user: 0.45s, system: 0.03s, MEM: 63.89 MB peak
+Yosys 0.66 (git sha1 86f2ddebc-dirty, g++ 16.1.1 -march=native -O3 -fno-plt -fexceptions -fstack-clash-protection -fcf-protection -mpclmul -ffile-prefix-map=/startdir/src=/usr/src/debug/yosys -fPIC -O3) [startdir/yosys at makepkg]
+Time spent: 80% 2x abc (1 sec), 3% 37x opt_expr (0 sec), ...
