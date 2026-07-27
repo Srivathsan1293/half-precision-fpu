@@ -23,30 +23,28 @@ A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with mu
 
 ### Area
 
-| Module | Cells | Area (um^2) |
-|--------|-------|-------------|
-| FMUL | 1,047 | 6,035.84 |
-| FADDSUB | 647 | 3,634.31 |
-| FDIV | 2,412 | 13,449.85 |
-| **Total** | **4,106** | **23,120.00** |
+| Module | Cells (plain) | Cells (timing-driven) | Delta |
+|--------|---------------|----------------------|-------|
+| FMUL | 1,047 | 1,086 | +39 |
+| FADDSUB | 647 | 672 | +25 |
+| FDIV | 2,335 | 2,412 | +77 |
+| **Total** | **4,029** | **4,170** | **+141** |
 
-### Timing (combinational, virtual 10 ns clock)
+### Timing (combinational, virtual 10 ns clock, ABC timing-driven sizing)
 
-| Module | Critical Path | Max Frequency |
-|--------|--------------|---------------|
-| FMUL | 13.44 ns | 74.4 MHz |
-| FADDSUB | 13.28 ns | 75.3 MHz |
-| FDIV (baseline) | 19.61 ns | 51.0 MHz |
-| FDIV (optimized) | **14.32 ns** | **69.8 MHz** |
+| Module | Plain abc | abc -D 500 -constr | Max Freq | Slack |
+|--------|-----------|-------------------|----------|-------|
+| FMUL | 13.44 ns | **10.54 ns** | 94.9 MHz | –0.54 ns |
+| FADDSUB | 13.28 ns | **10.39 ns** | 96.2 MHz | –0.39 ns |
+| FDIV | 19.61 ns | **14.32 ns** | 69.8 MHz | –4.32 ns |
 
-### Power (10% toggle rate, FDIV only)
+### Power (10% toggle rate)
 
-| Module | Total Power |
-|--------|-------------|
-| FMUL | — |
-| FADDSUB | — |
-| FDIV (baseline) | 81.4 mW |
-| FDIV (optimized) | 81.4 mW |
+| Module | Internal | Switching | Total |
+|--------|----------|-----------|-------|
+| FMUL | 1.25 mW | 1.21 mW | **2.46 mW** |
+| FADDSUB | 0.74 mW | 0.82 mW | **1.56 mW** |
+| FDIV | 42.60 mW | 38.87 mW | **81.4 mW** |
 
 ## FDIV Optimization: 19.61 ns -> 14.32 ns
 
