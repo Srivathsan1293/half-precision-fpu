@@ -146,7 +146,9 @@ module DIV(
     always_comb begin
         underflow_mask = 25'd0;
         for (int i = 0; i < 25; i++) begin
+            /* verilator lint_off WIDTHEXPAND */
             underflow_mask[i] = (i < (underflow_amt + 1));
+            /* verilator lint_on WIDTHEXPAND */
         end
     end
 
@@ -160,7 +162,7 @@ module DIV(
 
     // 9. EXTRACT ROUNDING BITS:
     wire G, R, S, round;
-    wire [9:0] ans_man_0, ans_man_1, rounded;
+    wire [9:0] ans_man_0, ans_man_1;
     wire [6:0] ans_exp_0;
 
     assign ans_man_0 = underflow_man[22:13];
