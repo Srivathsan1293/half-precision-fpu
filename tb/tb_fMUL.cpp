@@ -1,166 +1,201 @@
 #include <iostream>
-#include <verilated.h>
-#include "Vfpu_test.h" // Update to match your Verilated header if needed
 #include <fstream>
 #include <string>
 #include <iomanip>
 #include <cstdint>
+#include <cstring>
+#include <cmath>
+#include <sys/stat.h>
+#include <verilated.h>
+#include "Vfpu_test.h"
 
-// Golden Reference: Full IEEE-754 FP16 (Normals, Subnormals, RNTE, Special Cases)
-uint16_t compute_golden_ieee(uint16_t a, uint16_t b) {
+// Categories for sorted log files
+enum Category {
+    CAT_NAN = 0,
+    CAT_INF = 1,
+    CAT_ZERO = 2,
+    CAT_SUBNORM = 3,
+    CAT_NORMAL = 4,
+    CAT_COUNT = 5
+};
+
+const char* cat_filenames[] = {
+    "testing_results/fmul_fail_nan.txt",
+    "testing_results/fmul_fail_inf.txt",
+    "testing_results/fmul_fail_zero.txt",
+    "testing_results/fmul_fail_subnormal.txt",
+    "testing_results/fmul_fail_normal.txt"
+};
+
+const char* cat_names[] = {
+    "Involves NaN              ",
+    "Involves Infinity         ",
+    "Involves True Zero        ",
+    "Involves Subnormal(s)     ",
+    "Normal Arithmetic (Normal)"
+};
+
+// Golden Model: Matches FMUL SystemVerilog specification
+uint16_t compute_golden_cpp_native(uint16_t a, uint16_t b) {
+    uint16_t expA = (a >> 10) & 0x1F;
+    uint16_t expB = (b >> 10) & 0x1F;
+    uint16_t manA = a & 0x03FF;
+    uint16_t manB = b & 0x03FF;
+
+    bool a_nan  = (expA == 31 && manA != 0);
+    bool b_nan  = (expB == 31 && manB != 0);
+    bool a_zero = (expA == 0 && manA == 0);
+    bool b_zero = (expB == 0 && manB == 0);
+    bool a_inf  = (expA == 31 && manA == 0);
+    bool b_inf  = (expB == 31 && manB == 0);
+
     uint16_t signA = (a >> 15) & 1;
     uint16_t signB = (b >> 15) & 1;
-    int32_t expA   = (a >> 10) & 0x1F;
-    int32_t expB   = (b >> 10) & 0x1F;
-    uint32_t manA  = a & 0x03FF;
-    uint32_t manB  = b & 0x03FF;
+    uint16_t final_sign = signA ^ signB;
 
-    uint16_t signAns = signA ^ signB;
-
-    // --- 1. CLASSIFY INPUTS ---
-    bool a_zero = (expA == 0 && manA == 0);
-    bool a_inf  = (expA == 31 && manA == 0);
-    bool a_nan  = (expA == 31 && manA != 0);
-    bool b_zero = (expB == 0 && manB == 0);
-    bool b_inf  = (expB == 31 && manB == 0);
-    bool b_nan  = (expB == 31 && manB != 0);
-
-    // --- 2. SPECIAL CASE OVERRIDES ---
-    if (a_nan || b_nan) return (signAns << 15) | 0x7E00; // Quiet NaN
-    if ((a_zero && b_inf) || (a_inf && b_zero)) return (signAns << 15) | 0x7E00; // Invalid Op -> NaN
-    if (a_inf || b_inf) return (signAns << 15) | 0x7C00; // Infinity
-    if (a_zero || b_zero) return (signAns << 15) | 0x0000; // Zero
-
-    // --- 3. LZD PRE-PROCESSING (Normalize Subnormals) ---
-    int32_t trueExpA = (expA == 0) ? -14 : expA - 15;
-    int32_t trueExpB = (expB == 0) ? -14 : expB - 15;
-    uint32_t normManA = (expA == 0) ? manA : (manA | 0x0400);
-    uint32_t normManB = (expB == 0) ? manB : (manB | 0x0400);
-
-    while ((normManA & 0x0400) == 0 && normManA != 0) { normManA <<= 1; trueExpA--; }
-    while ((normManB & 0x0400) == 0 && normManB != 0) { normManB <<= 1; trueExpB--; }
-
-    // --- 4. MULTIPLIER DATAPATH ---
-    uint32_t prod = normManA * normManB;
-    int32_t expAns = trueExpA + trueExpB + 15;
-
-    // Normalize product
-    uint32_t mantissa_adj = 0;
-    if (prod & 0x200000) { // MSB is bit 21
-        mantissa_adj = prod;
-        expAns += 1;
-    } else {
-        mantissa_adj = prod << 1; // Shift to bit 21
+    // Direct RTL special case overrides (FMUL.sv)
+    if (a_nan || b_nan || (a_zero && b_inf) || (a_inf && b_zero)) {
+        return (final_sign << 15) | 0x7E00; // NaN override
+    }
+    if (a_inf || b_inf) {
+        return (final_sign << 15) | 0x7C00; // Infinity override
+    }
+    if (a_zero || b_zero) {
+        return (final_sign << 15) | 0x0000; // Zero override
     }
 
-    // --- 5. OUTPUT POST-PROCESSING (Denormalization Shift) ---
-    if (expAns <= 0) {
-        int32_t shift_amt = 1 - expAns;
+    // Standard native IEEE FP16 multiplication
+    _Float16 float_A, float_B, float_ans;
+    std::memcpy(&float_A, &a, sizeof(uint16_t));
+    std::memcpy(&float_B, &b, sizeof(uint16_t));
 
-        // Total Underflow Check
-        if (shift_amt > 13) {
-            return (signAns << 15) | 0x0000;
-        }
+    float_ans = float_A * float_B;
 
-        // Shift while preserving the sticky bit (bitwise OR of all dropped bits)
-        uint32_t sticky = 0;
-        for (int i = 0; i < shift_amt; i++) {
-            sticky |= (mantissa_adj & 1);
-            mantissa_adj >>= 1;
-        }
-        mantissa_adj |= sticky;
-        expAns = 0; // Force exponent to subnormal format
-    }
-
-    // --- 6. RNTE ROUNDING LOGIC ---
-    bool G   = (mantissa_adj & 0x0400) != 0;
-    bool R   = (mantissa_adj & 0x0200) != 0;
-    bool S   = (mantissa_adj & 0x01FF) != 0;
-    bool LSB = (mantissa_adj & 0x0800) != 0;
-
-    uint32_t right_mantissa = (mantissa_adj >> 11) & 0x03FF;
-
-    if (G && (R || S || LSB)) {
-        right_mantissa += 1;
-        if (right_mantissa & 0x0400) {
-            right_mantissa = 0;
-            expAns += 1;
-        }
-    }
-
-    // --- 7. FINAL OVERFLOW CHECK ---
-    if (expAns >= 31) {
-        return (signAns << 15) | 0x7C00;
-    }
-
-    return (signAns << 15) | ((expAns & 0x1F) << 10) | (right_mantissa & 0x03FF);
+    uint16_t golden_bits;
+    std::memcpy(&golden_bits, &float_ans, sizeof(uint16_t));
+    return golden_bits;
 }
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     Vfpu_test* dut = new Vfpu_test;
 
-    std::ofstream outfile("testing_results/fpu_full_ieee_log.txt");
-    if (!outfile.is_open()) {
-        std::cerr << "Error: Could not open output file." << std::endl;
-        return 1;
+    // Create results directory
+    #if defined(_WIN32)
+    _mkdir("testing_results");
+    #else
+    mkdir("testing_results", 0777);
+    #endif
+
+    std::ofstream log_files[CAT_COUNT];
+    for (int i = 0; i < CAT_COUNT; ++i) {
+        log_files[i].open(cat_filenames[i]);
+        if (!log_files[i].is_open()) {
+            std::cerr << "Error: Could not open output file " << cat_filenames[i] << std::endl;
+            delete dut;
+            return 1;
+        }
+        log_files[i] << "Category: " << cat_names[i] << "\n";
+        log_files[i] << "Format: A | B | Expected | Got | Delta (Expected - Got)\n";
+        log_files[i] << "-------------------------------------------------------------\n";
     }
 
-    uint64_t total_combinations = 4294967296ULL; // 65536 * 65536
-    std::cout << "--- Starting Full IEEE-754 FP16 Test ---" << std::endl;
-    std::cout << "Testing exactly 4,294,967,296 combinations..." << std::endl;
-    std::cout << "This tests Normals, Subnormals, RNTE, and Special Cases." << std::endl;
-
+    uint64_t total_combinations = 4294967296ULL;
     uint64_t total_tests = 0;
-    uint64_t failed_tests = 0;
-    uint64_t print_interval = total_combinations / 20; // Print every 5%
+    uint64_t total_failed = 0;
 
-    // Exhaustive loops covering the entire 16-bit spectrum
+    uint64_t cat_totals[CAT_COUNT] = {0};
+    uint64_t cat_fails[CAT_COUNT]  = {0};
+
+    uint64_t update_interval = total_combinations / 100;
+    int bar_width = 40;
+
+    std::cout << "--- Starting FMUL Hardware Test Pipeline ---" << std::endl;
+
     for (uint32_t i = 0; i <= 0xFFFF; i++) {
         for (uint32_t j = 0; j <= 0xFFFF; j++) {
             total_tests++;
 
-            if (total_tests % print_interval == 0) {
-                std::cout << "Progress: " << (total_tests * 100) / total_combinations << "% completed..." << std::endl;
+            if (total_tests % update_interval == 0 || total_tests == total_combinations) {
+                float progress = static_cast<float>(total_tests) / total_combinations;
+                int pos = static_cast<int>(bar_width * progress);
+
+                std::cout << "\r[";
+                for (int k = 0; k < bar_width; ++k) {
+                    if (k < pos) std::cout << "=";
+                    else if (k == pos) std::cout << ">";
+                    else std::cout << " ";
+                }
+                std::cout << "] " << static_cast<int>(progress * 100.0) << " %" << std::flush;
             }
 
             uint16_t a = static_cast<uint16_t>(i);
             uint16_t b = static_cast<uint16_t>(j);
 
+            // Categorize inputs
+            uint16_t expA = (a >> 10) & 0x1F;
+            uint16_t manA = a & 0x03FF;
+            uint16_t expB = (b >> 10) & 0x1F;
+            uint16_t manB = b & 0x03FF;
+
+            bool a_zero = (expA == 0 && manA == 0);
+            bool b_zero = (expB == 0 && manB == 0);
+            bool a_sub  = (expA == 0 && manA != 0);
+            bool b_sub  = (expB == 0 && manB != 0);
+            bool a_inf  = (expA == 31 && manA == 0);
+            bool b_inf  = (expB == 31 && manB == 0);
+            bool a_nan  = (expA == 31 && manA != 0);
+            bool b_nan  = (expB == 31 && manB != 0);
+
+            Category current_cat;
+            if (a_nan || b_nan)         current_cat = CAT_NAN;
+            else if (a_inf || b_inf)    current_cat = CAT_INF;
+            else if (a_zero || b_zero)  current_cat = CAT_ZERO;
+            else if (a_sub || b_sub)    current_cat = CAT_SUBNORM;
+            else                        current_cat = CAT_NORMAL;
+
+            cat_totals[current_cat]++;
+
+            // Clock pulse execution for RTL pipeline latency
             dut->a = a;
             dut->b = b;
+
+            dut->clk = 0;
+            dut->eval();
+            dut->clk = 1;
             dut->eval();
 
-            uint16_t expected_ans = compute_golden_ieee(a, b);
+            uint16_t expected_ans = compute_golden_cpp_native(a, b);
             uint16_t hw_ans = dut->ans;
 
             if (hw_ans != expected_ans) {
-                failed_tests++;
+                total_failed++;
+                cat_fails[current_cat]++;
 
-                std::stringstream err_ss;
-                err_ss << "FAIL: a=0x" << std::hex << std::setfill('0') << std::setw(4) << a
+                int32_t delta = static_cast<int32_t>(expected_ans) - static_cast<int32_t>(hw_ans);
+
+                log_files[current_cat]
+                << "a=0x" << std::hex << std::setfill('0') << std::setw(4) << a
                 << " | b=0x" << std::setw(4) << b
                 << " | Expected=0x" << std::setw(4) << expected_ans
-                << " | Got=0x" << std::setw(4) << hw_ans;
-
-                if (failed_tests <= 100) {
-                    std::cout << err_ss.str() << std::endl;
-                }
-                outfile << err_ss.str() << std::endl;
+                << " | Got=0x" << std::setw(4) << hw_ans
+                << " | Delta=" << std::dec << delta << "\n";
             }
         }
     }
 
-    std::cout << "-------------------------------------------" << std::endl;
-    if (failed_tests == 0) {
-        std::cout << "SUCCESS: All " << total_tests << " vectors passed flawlessly! Your FPU is complete." << std::endl;
-        outfile   << "SUCCESS: All 4,294,967,296 vectors passed flawlessly." << std::endl;
-    } else {
-        std::cout << "FAILURE: " << failed_tests << " / " << total_tests << " cases failed." << std::endl;
-        std::cout << "Check the 'testing_results/fpu_full_ieee_log.txt' file for details." << std::endl;
+    std::cout << "\n\n===========================================" << std::endl;
+    std::cout << "           FINAL FMUL HARDWARE SUMMARY       " << std::endl;
+    std::cout << "===========================================\n" << std::endl;
+
+    for (int i = 0; i < CAT_COUNT; i++) {
+        log_files[i].close();
+        double fail_pct = (cat_totals[i] > 0) ? ((double)cat_fails[i] / cat_totals[i]) * 100.0 : 0.0;
+        std::cout << cat_names[i] << " : "
+        << cat_fails[i] << " failed / " << cat_totals[i] << " total ("
+        << std::fixed << std::setprecision(2) << fail_pct << "%)\n";
     }
 
-    outfile.close();
     delete dut;
-    return failed_tests == 0 ? 0 : 1;
+    return (total_failed == 0) ? 0 : 1;
 }

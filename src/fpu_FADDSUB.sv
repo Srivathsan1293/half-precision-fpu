@@ -2,6 +2,7 @@
 /* verilator lint_off DECLFILENAME */
 module addsub(
     input logic [15:0] a,b,
+    input logic clk,
     input logic sub,
     output logic [15:0] ans
 );
@@ -13,12 +14,16 @@ module addsub(
     wire manA_zero = (a[9:0] == 10'd0);
     wire manB_zero = (b[9:0] == 10'd0);
 
-    wire nanA   = expA_max & (~manA_zero);
-    wire nanB   = expB_max & (~manB_zero);
-    wire infinA = expA_max & manA_zero;
-    wire infinB = expB_max & manB_zero;
-    wire zeroA     = expA_zero & manA_zero;
-    wire zeroB     = expB_zero & manB_zero;
+    reg nanA, nanB, infinA, infinB, zeroA, zeroB;
+
+    always_ff @(posedge clk) begin
+        nanA   <= expA_max & (~manA_zero);
+        nanB   <= expB_max & (~manB_zero);
+        infinA <= expA_max & manA_zero;
+        infinB <= expB_max & manB_zero;
+        zeroA  <= expA_zero & manA_zero;
+        zeroB  <= expB_zero & manB_zero;
+    end
 
     //if subtraction then flip sign B
     wire signA = a[15]; wire signB = sub ? ~b[15] : b[15];
@@ -71,9 +76,18 @@ module addsub(
     //checking if answer is 0 set sign to 0 as per standard
     wire sign = (addsub_man == 15'd0 && subtract) ? 1'b0 : sign_temp;
 
-    wire [21:0] pre_norm_man = {addsub_man, 7'b0};
+    reg [21:0] pre_norm_man;
     logic [21:0] man_fixing;
     logic [6:0] exp_fixing;
+    reg subtract_reg;
+    reg sign_reg;
+
+
+    always_ff @(posedge clk) begin
+        subtract_reg <= subtract;
+        sign_reg <= sign;
+        pre_norm_man <= {addsub_man, 7'b0};
+    end
 
     always_comb begin
         if (pre_norm_man == 22'd0) begin
@@ -126,6 +140,9 @@ module addsub(
             shift_amt_signed = 0;
         end
     end
+
+
+
     // applying RNTE rounding
     wire G_r = sub_man[9];
     wire R_r = sub_man[8];
@@ -174,23 +191,31 @@ module addsub(
     wire [15:0] ans_calculated;
     logic [15:0] ans_corrected;
 
-    assign ans_calculated[15] = sign;
+    assign ans_calculated[15] = sign_reg;
     assign ans_calculated[14:10] = overflow ? 5'b11111 : exp_packed;
     assign ans_calculated[9:0] = overflow ? 10'd0 : man;
+
+    reg signA_reg, signB_reg;
+
+    always_ff @(posedge clk) begin
+        signA_reg <= signA;
+        signB_reg <= signB;
+    end
+
 
     always_comb begin
         ans_corrected = ans_calculated;
 
         if (nanA || nanB) begin
             ans_corrected = {1'b0, 5'b11111, 10'b1000000000};
-        end else if (infinA && infinB && subtract) begin
+        end else if (infinA && infinB && subtract_reg) begin
             ans_corrected = {1'b0, 5'b11111, 10'b1000000000};
         end else if (infinA) begin
-            ans_corrected = {a[15], 5'b11111, 10'd0};
+            ans_corrected = {signA_reg, 5'b11111, 10'd0};
         end else if (infinB) begin
-            ans_corrected = {signB, 5'b11111, 10'd0};
+            ans_corrected = {signB_reg, 5'b11111, 10'd0};
         end else if (zeroA && zeroB) begin
-            ans_corrected = {(signA & signB), 15'd0};
+            ans_corrected = {(signA_reg & signB_reg), 15'd0};
         end
     end
 

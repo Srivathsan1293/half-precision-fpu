@@ -1,0 +1,14 @@
+=== fpu_FADDSUB testbench (pipelined) ===
+Timestamp: Fri 31 Jul 19:15:24 BST 2026
+Command: verilator --cc --build ... --exe tb/tb_fADDSUB.cpp
+Model: Vfpu_test (fpu_test.sv instantiated fpu_FADDSUB)
+
+===========================================
+         FINAL ADDSUB HARDWARE SUMMARY       
+===========================================
+
+Involves NaN               : 0 failed / 527974392 total (0.00%)
+Involves Infinity          : 0 failed / 507912 total (0.00%)
+Involves True Zero         : 0 failed / 507896 total (0.00%)
+Involves Subnormal(s)      : 0 failed / 511197192 total (0.00%)
+Normal Arithmetic (Normal) : 0 failed / 7549747200 total (0.00%)

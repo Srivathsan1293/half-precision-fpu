@@ -1,3 +1,0 @@
---- Starting 11x11 Unsigned Multiplier Exhaustive Test ---
--------------------------------------------
-SUCCESS: All 4194304 vectors passed flawlessly!

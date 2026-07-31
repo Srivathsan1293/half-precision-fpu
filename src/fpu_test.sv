@@ -1,6 +1,8 @@
 // src/fpu_test.sv
 module fpu_test (
     input logic [15:0] a,b,
+    input logic clk,
+    input logic sub,
     output logic[15:0] ans
 );
 
@@ -12,7 +14,8 @@ module fpu_test (
     //left #(.WIDTH(4)) left_4bit(.value(a), .shift_amt(b), .ans(ans));
     //right #(.WIDTH(4)) right_4bit(.value(a), .shift_amt(b), .ans(ans));
     //MUL mul (.A(a), .B(b), .ans(ans));
-    //FMUL fpu (.a(a), .b(b), .ans(ans));
-    //addsub fpu (.a(a), .b(b), .sub(sub), .ans(ans));
-    DIV fpu (.a(a), .b(b), .out(ans));
+    //MUL mul (.A(a), .B(b), .ans(ans));
+    //FMUL fpu (.a(a), .b(b), .ans(ans), .clk(clk));
+    //addsub fpu (.a(a), .b(b), .sub(sub), .ans(ans), .clk(clk));
+    DIV fpu (.a(a), .b(b), .out(ans), .clk(clk));
 endmodule

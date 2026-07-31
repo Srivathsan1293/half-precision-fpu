@@ -2,6 +2,7 @@
 /* verilator lint_off DECLFILENAME */
 module FMUL (
     input logic [15:0] a,b,
+    input logic clk,
     output logic [15:0] ans
 );
     //check for special cases 0, infinity, Nan;
@@ -50,7 +51,6 @@ module FMUL (
 
     wire [10:0] manA = subA ?  {1'b1, sub_man_a} : {1'b1, a[9:0]};
     wire [10:0] manB = subB ?  {1'b1, sub_man_b} : {1'b1, b[9:0]};
-
     //find sign
     wire [15:0] ans_corrected_0;
     wire signA = a[15]; wire signB = b[15];
@@ -58,19 +58,21 @@ module FMUL (
 
     //find exponent
     //add 2 exponents
-    wire [6:0] new_exp [3:1];
-    //performing exp = expA + expB - 15
-    assign new_exp[2] = expA + expB - 7'd15;
-    //get version of exponent when there is mantissa overflow
-    assign new_exp[1] = expA + expB - 7'd14;
-
-    //multiply both mantissa
+    reg [6:0] new_exp [2:1];
     /* verilator lint_off UNUSEDSIGNAL */
-    wire [21:0] prod = manA * manB;
+    reg [21:0] prod;
     /* verilator lint_on UNUSEDSIGNAL */
 
+    always_ff @(posedge clk) begin
+    //performing exp = expA + expB - 15
+        new_exp[1] <= expA + expB - 7'd14;
+    //get version of exponent when there is mantissa overflow
+        new_exp[2] <= expA + expB - 7'd15;
+        prod <= manA * manB;
+    end
+
     //choosing normal exponent new_exp[2] or the overflowed exponent new_exp[1]
-    assign new_exp[3] = prod[21] ? new_exp[1] : new_exp[2];
+    wire [6:0] exp_passed = prod[21] ? new_exp[1] : new_exp[2];
 
     //choosing right bits for mantissa
     /* verilator lint_off UNUSEDSIGNAL */
@@ -81,11 +83,11 @@ module FMUL (
     assign mantissa_adj = prod[21] ? prod : {prod[20:0], 1'b0};
 
     //detect if number is subnormal
-    wire is_pre_round_subnormal = new_exp[3][6] | (new_exp[3] == 7'd0);
+    wire is_pre_round_subnormal = exp_passed[6] | (exp_passed == 7'd0);
     wire [6:0] denorm_shift_amt;
 
     // Shift amount = 1 - Calculated Exponent
-    assign denorm_shift_amt = 7'd1 - new_exp[3];
+    assign denorm_shift_amt = 7'd1 - exp_passed;
 
     // Cap the shift at 22 so Verilog doesn't throw warnings for shifting beyond width
     wire [6:0] safe_shift = (denorm_shift_amt >= 7'd22) ? 7'd22 : denorm_shift_amt;
@@ -110,7 +112,7 @@ module FMUL (
     /* verilator lint_off UNUSEDSIGNAL */
     wire [21:0] pre_round_man = denorm_shifted_man | {21'd0, dropped_sticky};
     /* verilator lint_on UNUSEDSIGNAL */
-    wire [6:0] pre_round_exp = is_pre_round_subnormal ? 7'd0 : new_exp[3];
+    wire [6:0] pre_round_exp = is_pre_round_subnormal ? 7'd0 : exp_passed;
 
     // --- 2. APPLY RNTE ROUNDING ---
     wire G, R, S;
@@ -134,8 +136,15 @@ module FMUL (
     assign ans_corrected_0[14:10] = overflow ? 5'b11111 : final_exp[4:0];
     assign ans_corrected_0[9:0] = overflow ? 10'd0 : right_mantissa;
 
-    //selecting right answer when invalid inputs
     wire special = nanA | nanB | infinA | infinB | A0 | B0;
-    assign ans = special ? ans_corrected_1 : ans_corrected_0;
+
+    reg [15:0] ans_corrected_1_reg;
+    reg special_reg;
+    always_ff @(posedge clk) begin
+        ans_corrected_1_reg <= ans_corrected_1;
+        special_reg <= special;
+    end
+
+    assign ans = special_reg ? ans_corrected_1_reg : ans_corrected_0;
 
 endmodule

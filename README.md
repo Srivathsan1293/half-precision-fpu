@@ -19,34 +19,19 @@ A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with mu
 | `fpu_FDIV.sv` | Iterative division via reciprocal ROM |
 | `fpu_modules.sv` | Packed module definitions |
 
-## PPA (Sky130 @ 25C, 1.80 V)
+## PPA (Sky130 @ 25C, 1.80 V, pipelined)
 
-### Area
+Synthesis: Yosys + ABC (Sky130). Timing/Power: OpenSTA with a virtual 10 ns clock and 10% input toggle rate. FDIV area excludes the reciprocal ROM (kept black-boxed; standalone 1,024x16 ROM).
 
-| Module | Cells (plain) | Cells (timing-driven) | Delta |
-|--------|---------------|----------------------|-------|
-| FMUL | 1,047 | 1,086 | +39 |
-| FADDSUB | 647 | 672 | +25 |
-| FDIV | 2,335 | 2,412 | +77 |
-| **Total** | **4,029** | **4,170** | **+141** |
+| Module | Stages | Cells | Area | Critical Path (LTP) | Fmax | Power |
+|--------|--------|-------|------|---------------------|------|-------|
+| FMUL | 2 | 1,053 | 7,680 um^2 | **8.29 ns** | 120.7 MHz | 1.81 mW |
+| FADDSUB | 2 | 721 | 4,917 um^2 | **8.30 ns** | 120.5 MHz | 1.24 mW |
+| FDIV | 3 | 2,415 | 17,168 um^2 | **9.54 ns** | 104.8 MHz | 0.75 mW |
 
-### Timing (combinational, virtual 10 ns clock, ABC timing-driven sizing)
+Latency = stages x 10 ns clock period; throughput = one result per cycle after pipeline fill (Fmax above).
 
-| Module | Plain abc | abc -D 500 -constr | Max Freq | Slack |
-|--------|-----------|-------------------|----------|-------|
-| FMUL | 13.44 ns | **10.54 ns** | 94.9 MHz | –0.54 ns |
-| FADDSUB | 13.28 ns | **10.39 ns** | 96.2 MHz | –0.39 ns |
-| FDIV | 19.61 ns | **14.32 ns** | 69.8 MHz | –4.32 ns |
-
-### Power (10% toggle rate)
-
-| Module | Internal | Switching | Total |
-|--------|----------|-----------|-------|
-| FMUL | 1.25 mW | 1.21 mW | **2.46 mW** |
-| FADDSUB | 0.74 mW | 0.82 mW | **1.56 mW** |
-| FDIV | 42.60 mW | 38.87 mW | **81.4 mW** |
-
-## FDIV Optimization: 19.61 ns -> 14.32 ns
+## FDIV Optimization: 19.61 ns -> 9.54 ns
 
 The FDIV module uses a reciprocal-ROM-based algorithm: look up 1/B from a ROM, multiply by A, then perform a back-multiply quotient refinement (q_trial * B) and compare the result against the shifted dividend to correct the quotient.
 
@@ -62,9 +47,19 @@ Yosys 0.66 -> ABC (strash + dc2 + dch + timing-driven map)
           -> OpenSTA 3.1.0 for timing/power analysis
 ```
 
-Default ABC mapping produces a 19.61 ns critical path. Adding ABC's timing-driven gate sizing (`-D` + `-constr` flags) triggers `upsize`/`dnsize`/`buffer` passes that replace weak drive-strength cells with faster `_2`/`_4` variants, reducing the path by 27%.
+Default ABC mapping produces a 19.61 ns combinational critical path. Adding ABC's timing-driven gate sizing (`-D` + `-constr` flags) triggers `upsize`/`dnsize`/`buffer` passes that replace weak drive-strength cells with faster `_2`/`_4` variants, reducing the path by 27% to 14.32 ns.
 
-### Attempts that did NOT improve timing
+### Pipelining: 14.32 ns -> 9.54 ns
+
+Breaking past the 14.32 ns combinational limit required splitting the datapath with pipeline registers:
+
+- **FDIV**: 3-stage pipeline -> longest stage 9.54 ns (104.8 MHz)
+- **FMUL**: 2-stage pipeline -> longest stage 8.29 ns (120.7 MHz)
+- **FADDSUB**: 2-stage pipeline -> longest stage 8.30 ns (120.5 MHz)
+
+All modules verified exhaustively (every combination of two half-precision inputs) with Verilator: 0 mismatches vs. the golden model across NaN/Inf/zero/subnormal/normal categories.
+
+### Attempts that did NOT improve timing (combinational)
 
 | Attempt | Result |
 |---------|--------|
@@ -76,10 +71,10 @@ Default ABC mapping produces a 19.61 ns critical path. Adding ABC's timing-drive
 
 ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectural hints (carry-select, parallel comparators). The 14.32 ns fixed point is a fundamental limit of the algorithm's logic depth in Sky130.
 
-### To break past 14.32 ns
+### Beyond 9.54 ns
 
-- Add pipeline registers inside the quotient refinement loop
 - Use a different division algorithm (Goldschmidt, SRT)
+- Add more pipeline stages or a faster reciprocal ROM
 - Move to a faster technology node
 
 ## Tools

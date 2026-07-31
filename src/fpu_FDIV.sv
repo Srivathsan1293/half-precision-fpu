@@ -3,8 +3,16 @@
 
 module DIV(
     input logic [15:0] a, b,
+    input logic clk,
     output logic [15:0] out
 );
+    wire expA_zero = (a[14:10] == 5'd0);
+    wire expB_zero = (b[14:10] == 5'd0);
+    wire expA_max  = (a[14:10] == 5'b11111);
+    wire expB_max  = (b[14:10] == 5'b11111);
+    wire manA_zero = (a[9:0] == 10'd0);
+    wire manB_zero = (b[9:0] == 10'd0);
+
 
     // 1. Find final sign: signA ^ signB.
     wire signA, signB;
@@ -13,8 +21,8 @@ module DIV(
 
     // 2. Check for subnormal inputs (exp == 5'b00000 & man != 10'b0). and normalize that
     wire subA, subB;
-    assign subA = (&(~a[14:10])) & (|a[9:0]);
-    assign subB = (&(~b[14:10])) & (|b[9:0]);
+    assign subA = expA_zero & (~manA_zero);
+    assign subB = expB_zero & (~manB_zero);
     logic [10:0] sub_manA, sub_manB;
     logic [4:0] shift_amtA, shift_amtB;
 
@@ -56,7 +64,7 @@ module DIV(
     //choose between subnormal and normal.
     wire [6:0] final_expA, final_expB;
     /* verilator lint_off UNUSEDSIGNAL */ wire [10:0] final_manA, final_manB; /* verilator lint_on UNUSEDSIGNAL */
-
+    /* verilator lint_off UNUSEDSIGNAL */ reg [10:0] final_manA_reg, final_manB_reg; /* verilator lint_on UNUSEDSIGNAL */
     assign final_expA = subA ? sub_expA : {2'b00, a[14:10]};
     assign final_manA = subA ? sub_manA : {1'b1, a[9:0]};
 
@@ -64,70 +72,91 @@ module DIV(
     assign final_manB = subB ? sub_manB : {1'b1, b[9:0]};
 
     // 4. Find tentative exponent: ExpA - ExpB + 15.
-    wire [6:0] tentative_exp;
-    wire [6:0] A_minus_B;
-
-    assign A_minus_B = final_expA - final_expB;
-    assign tentative_exp = A_minus_B + 7'd15;
+    reg [2:0][6:0] tentative_exp;
 
     wire [13:0] reciprocalB;
-    /* verilator lint_off UNUSEDSIGNAL */ logic [24:0] initial_prod, prod; /* verilator lint_on UNUSEDSIGNAL */
+    reg [13:0] reciprocalB_reg;
+    /* verilator lint_off UNUSEDSIGNAL */ reg [24:0] prod, initial_prod; /* verilator lint_on UNUSEDSIGNAL */
 
-    reciprocal_rom rec_rom_inst (
-        .addr(final_manB[9:0]),
-        .data_out(reciprocalB)
-    );
+    reciprocal_rom rec_rom_inst (.addr(final_manB[9:0]), .data_out(reciprocalB));
+    always_ff @(posedge clk) begin
+        final_manA_reg <= final_manA;
+        final_manB_reg <= final_manB;
+        tentative_exp[0] <= final_expA - final_expB + 7'd15;
+        reciprocalB_reg <= reciprocalB;
+    end
 
     // 6. Multiply & EXACT Back-Multiply Quotient Refinement
     logic [14:0] q_trial;
     logic [25:0] trial_A;
     logic signed [27:0] diff;
-    logic [25:0] shifted_A;
-    logic signed [27:0] B_align_signed;
-    logic [14:0] q_final;
-    logic sticky_final;
+    reg [25:0] shifted_A;
+    reg signed [27:0] B_align_signed;
+
+    reg [10:0] final_manB_reg2;
+
+    always_ff  @(posedge clk) begin
+        tentative_exp[1] <= tentative_exp[0];
+        initial_prod <= reciprocalB_reg * final_manA_reg;
+        shifted_A <= {2'b00, final_manA_reg, 13'd0};
+        B_align_signed <= $signed({17'd0, final_manB_reg});
+        final_manB_reg2 <= final_manB_reg;
+    end
+
+
+    // --- COMBINATIONAL QUOTIENT REFINEMENT ---
+    logic [14:0] q_final_comb;
+    logic sticky_final_comb;
 
     always_comb begin
-        initial_prod = reciprocalB * final_manA;
         q_trial = initial_prod[24:10];
-        trial_A = q_trial * final_manB;
-        shifted_A = {2'b00, final_manA, 13'd0};
+        trial_A = q_trial * final_manB_reg2;
+
         diff = $signed({2'b00, shifted_A}) - $signed({2'b00, trial_A});
-        B_align_signed = $signed({17'd0, final_manB});
+
         if (diff >= (B_align_signed <<< 1)) begin
-            q_final = q_trial + 15'd2;
-            sticky_final = (diff > (B_align_signed <<< 1));
+            q_final_comb = q_trial + 15'd2;
+            sticky_final_comb = (diff > (B_align_signed <<< 1));
         end else if (diff >= B_align_signed) begin
-            q_final = q_trial + 15'd1;
-            sticky_final = (diff > B_align_signed);
+            q_final_comb = q_trial + 15'd1;
+            sticky_final_comb = (diff > B_align_signed);
         end else if (diff > 0) begin
-            q_final = q_trial;
-            sticky_final = 1'b1;
+            q_final_comb = q_trial;
+            sticky_final_comb = 1'b1;
         end else if (diff == 0) begin
-            q_final = q_trial;
-            sticky_final = 1'b0;
+            q_final_comb = q_trial;
+            sticky_final_comb = 1'b0;
         end else if (diff >= -B_align_signed) begin
-            q_final = q_trial - 15'd1;
-            sticky_final = (diff != -B_align_signed);
+            q_final_comb = q_trial - 15'd1;
+            sticky_final_comb = (diff != -B_align_signed);
         end else if (diff >= -(B_align_signed <<< 1)) begin
-            q_final = q_trial - 15'd2;
-            sticky_final = (diff != -(B_align_signed <<< 1));
+            q_final_comb = q_trial - 15'd2;
+            sticky_final_comb = (diff != -(B_align_signed <<< 1));
         end else begin
-            q_final = q_trial - 15'd3;
-            sticky_final = 1'b1;
+            q_final_comb = q_trial - 15'd3;
+            sticky_final_comb = 1'b1;
         end
+    end
+
+    // --- CYCLE 3 REGISTER ---
+    always_ff @(posedge clk) begin
+        tentative_exp[2] <= tentative_exp[1];
+
         // Assemble 25-bit product
-        prod = {q_final, 10'd0};
-        if (sticky_final) prod = prod | 25'd1;
+        if (sticky_final_comb) begin
+            prod <= ({q_final_comb, 10'd0}) | 25'd1;
+        end else begin
+            prod <= {q_final_comb, 10'd0};
+        end
     end
 
     // 7. PRE-SHIFT NORMALIZATION:
     wire [6:0] adjusted_exp, normalised_exp;
     wire [24:0] normalised_prod;
 
-    assign adjusted_exp = tentative_exp - 7'd1;
+    assign adjusted_exp = tentative_exp[2] - 7'd1;
 
-    assign normalised_exp = prod[23] ? tentative_exp : adjusted_exp;
+    assign normalised_exp = prod[23] ? tentative_exp[2] : adjusted_exp;
     assign normalised_prod = prod[23] ? prod : (prod << 1);
 
     // 8. UNDERFLOW CHECK & SHIFT:
@@ -183,29 +212,43 @@ module DIV(
     wire [15:0] normal_ans;
     assign normal_ans[14:10] = (ans_exp_0 > 7'd30) ? 5'b11111 : ans_exp_0[4:0];
     assign normal_ans[9:0] = (ans_exp_0 > 7'd30) ? 10'd0 : ans_man_1;
-    assign normal_ans[15] = final_sign;
+
 
     // 13. FLAGS & OVERRIDES:
-    wire nanA, nanB, infinA, infinB, A0, B0;
-    assign nanA = (& a[14:10]) & (| a[9:0]);
-    assign nanB = (& b[14:10]) & (| b[9:0]);
-    assign infinA = (& a[14:10]) & (& (~ a[9:0]));
-    assign infinB = (& b[14:10]) & (& (~ b[9:0]));
-    assign A0 = (& (~ a[14:10])) & (& (~ a[9:0]));
-    assign B0 = (& (~ b[14:10])) & (& (~ b[9:0]));
+    wire nanA   = expA_max & (~manA_zero);
+    wire nanB   = expB_max & (~manB_zero);
+    wire infinA = expA_max & manA_zero;
+    wire infinB = expB_max & manB_zero;
+    wire A0     = expA_zero & manA_zero;
+    wire B0     = expB_zero & manB_zero;
 
-    logic [15:0] special_ans;
 
-    always_comb begin
+    reg [2:0][15:0] special_ans;
+    reg [2:0] special_flag;
+
+    always_ff @(posedge clk) begin
+        special_flag[0] <= nanA | nanB | A0 | B0 | infinA | infinB;
         if (nanA | nanB | (A0 & B0) | (infinA & infinB)) begin
-            special_ans = {final_sign, 15'b111111000000000};
+            special_ans[0] <= {final_sign, 15'b111111000000000};
         end else if (infinA | B0) begin
-            special_ans = {final_sign, 15'b111110000000000};
+            special_ans[0] <= {final_sign, 15'b111110000000000};
         end else begin
-            special_ans = {final_sign, 15'd0};
+            special_ans[0] <= {final_sign, 15'd0};
         end
     end
 
+    always_ff @(posedge clk) begin
+        special_ans[1] <= special_ans[0];
+        special_flag[1] <= special_flag[0];
+    end
+
+    always_ff @(posedge clk) begin
+        special_ans[2] <= special_ans[1];
+        special_flag[2] <= special_flag[1];
+    end
+
+    assign normal_ans[15] = special_ans[2][15];
+
     // 14. Choose between flags output or the calculated output.
-    assign out = (nanA | nanB | A0 | B0 | infinA | infinB) ? special_ans : normal_ans;
+    assign out = (special_flag[2]) ? special_ans[2] : normal_ans;
 endmodule

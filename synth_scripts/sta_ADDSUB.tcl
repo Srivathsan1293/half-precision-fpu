@@ -1,7 +1,7 @@
 read_liberty sky130_fd_sc_hd__tt_025C_1v80.lib
 read_verilog synth_outputs/ADDSUB_synth.v
 link_design addsub
-create_clock -name VCLK -period 10.0
+create_clock -name VCLK -period 10.0 [get_ports clk]
 set_input_delay -clock VCLK 0.0 [all_inputs]
 set_output_delay -clock VCLK 0.0 [all_outputs]
 puts "=========================================================="

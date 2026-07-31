@@ -1,3 +1,0 @@
-testing: in0: 0, in1: 1
-sel is 0 output is 0
-sel is 1 output is 1
