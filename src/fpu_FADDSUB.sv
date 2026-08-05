@@ -49,16 +49,15 @@ module addsub(
     //adjusting mantissa's to match and catching sticky bits
     logic [21:0] aligned_smaller;
     logic align_sticky;
+    // The mantissa window [21:9] is empty once abs_diff >= 13, so cap the shift
+    // there and fold every lower bit into the sticky via a shift-mask.
     always_comb begin
-        if (abs_diff >= 22) begin
-            aligned_smaller = 22'd0;
-            align_sticky = |man_smaller;
+        if (abs_diff > 7'd13) begin
+            aligned_smaller = man_smaller >> 7'd13;
+            align_sticky = |(man_smaller & ~(22'h3FFFFF << 7'd13));
         end else begin
             aligned_smaller = man_smaller >> abs_diff;
-            align_sticky = 1'b0;
-            for (int i = 0; i < 22; i++) begin
-                if (i < abs_diff && man_smaller[i]) align_sticky = 1'b1;
-            end
+            align_sticky = |(man_smaller & ~(22'h3FFFFF << abs_diff));
         end
     end
 
@@ -126,13 +125,14 @@ module addsub(
         if ($signed(exp_fixing) < -7'sd14) begin
             shift_amt_signed = -7'sd14 - $signed(exp_fixing);
             sub_exp = -7'sd14;
-            if (shift_amt_signed >= 22) begin
-                sub_man = {21'd0, |man_fixing};
+            // man_fixing is normalized (leading 1 at bit 21), so for shifts
+            // beyond 12 the mantissa window [20:10] is empty and only the
+            // shift==12 rounding (round up to min subnormal) can fire.
+            if (shift_amt_signed > 7'd12) begin
+                sub_man = man_fixing >> 7'd12;
+                sub_man[9] = 1'b0;
             end else begin
-                sub_man = (man_fixing >> shift_amt_signed);
-                for (int i = 0; i < 22; i++) begin
-                    if (i < shift_amt_signed && man_fixing[i]) sub_man[0] = 1'b1;
-                end
+                sub_man = (man_fixing >> shift_amt_signed) | {21'd0, |(man_fixing << (7'd21 - shift_amt_signed))};
             end
         end else begin
             sub_man = man_fixing;
