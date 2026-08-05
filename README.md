@@ -25,7 +25,7 @@ Synthesis: Yosys + ABC (Sky130). Timing/Power: OpenSTA with a virtual 10 ns cloc
 
 | Module | Stages | Cells | Area | Critical Path (LTP) | Fmax | Power |
 |--------|--------|-------|------|---------------------|------|-------|
-| FMUL | 2 | 1,053 | 7,680 um^2 | **8.29 ns** | 120.7 MHz | 1.81 mW |
+| FMUL | 2 | 1,036 | 7,471 um^2 | **7.44 ns** | 134.4 MHz | 1.65 mW |
 | FADDSUB | 2 | 690 | 4,763 um^2 | **8.74 ns** | 114.4 MHz | 1.48 mW |
 | FDIV | 3 | 2,926 | 19,596 um^2 | **8.61 ns** | 116.2 MHz | 15.5 mW |
 
@@ -54,7 +54,7 @@ Default ABC mapping produces a 19.61 ns combinational critical path. Adding ABC'
 Breaking past the 14.32 ns combinational limit required splitting the datapath with pipeline registers:
 
 - **FDIV**: 3-stage pipeline -> longest stage 8.61 ns (116.2 MHz)
-- **FMUL**: 2-stage pipeline -> longest stage 8.29 ns (120.7 MHz)
+- **FMUL**: 2-stage pipeline -> longest stage 7.44 ns (134.4 MHz)
 - **FADDSUB**: 2-stage pipeline -> longest stage 8.74 ns (114.4 MHz)
 
 All modules verified exhaustively (every combination of two half-precision inputs) with Verilator: 0 mismatches vs. the golden model across NaN/Inf/zero/subnormal/normal categories.
