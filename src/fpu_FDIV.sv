@@ -13,58 +13,41 @@ module DIV(
     wire manA_zero = (a[9:0] == 10'd0);
     wire manB_zero = (b[9:0] == 10'd0);
 
-
     // 1. Find final sign: signA ^ signB.
     wire signA, signB;
     assign signA = a[15]; assign signB = b[15];
     wire final_sign = signA ^ signB;
 
-    // 2. Check for subnormal inputs (exp == 5'b00000 & man != 10'b0). and normalize that
+    // 2. Check for subnormal inputs
     wire subA, subB;
     assign subA = expA_zero & (~manA_zero);
     assign subB = expB_zero & (~manB_zero);
+
+    // 3. Subnormal normalization utilizing shared module
     logic [10:0] sub_manA, sub_manB;
-    logic [4:0] shift_amtA, shift_amtB;
-
-    //LZD for subnormals
-    always_comb begin
-        casez (a[9:0])
-            10'b1zzzzzzzzz: begin sub_manA = {1'b1, (a[9:0] << 1)}; shift_amtA = 1; end
-            10'b01zzzzzzzz: begin sub_manA = {1'b1, (a[9:0] << 2)}; shift_amtA = 2; end
-            10'b001zzzzzzz: begin sub_manA = {1'b1, (a[9:0] << 3)}; shift_amtA = 3; end
-            10'b0001zzzzzz: begin sub_manA = {1'b1, (a[9:0] << 4)}; shift_amtA = 4; end
-            10'b00001zzzzz: begin sub_manA = {1'b1, (a[9:0] << 5)}; shift_amtA = 5; end
-            10'b000001zzzz: begin sub_manA = {1'b1, (a[9:0] << 6)}; shift_amtA = 6; end
-            10'b0000001zzz: begin sub_manA = {1'b1, (a[9:0] << 7)}; shift_amtA = 7; end
-            10'b00000001zz: begin sub_manA = {1'b1, (a[9:0] << 8)}; shift_amtA = 8; end
-            10'b000000001z: begin sub_manA = {1'b1, (a[9:0] << 9)}; shift_amtA = 9; end
-            10'b0000000001: begin sub_manA = {1'b1, (a[9:0] << 10)}; shift_amtA = 10; end
-            default:         begin sub_manA = {1'b1, a[9:0]}; shift_amtA = 0; end
-        endcase
-        casez (b[9:0])
-            10'b1zzzzzzzzz: begin sub_manB = {1'b1, (b[9:0] << 1)}; shift_amtB = 1; end
-            10'b01zzzzzzzz: begin sub_manB = {1'b1, (b[9:0] << 2)}; shift_amtB = 2; end
-            10'b001zzzzzzz: begin sub_manB = {1'b1, (b[9:0] << 3)}; shift_amtB = 3; end
-            10'b0001zzzzzz: begin sub_manB = {1'b1, (b[9:0] << 4)}; shift_amtB = 4; end
-            10'b00001zzzzz: begin sub_manB = {1'b1, (b[9:0] << 5)}; shift_amtB = 5; end
-            10'b000001zzzz: begin sub_manB = {1'b1, (b[9:0] << 6)}; shift_amtB = 6; end
-            10'b0000001zzz: begin sub_manB = {1'b1, (b[9:0] << 7)}; shift_amtB = 7; end
-            10'b00000001zz: begin sub_manB = {1'b1, (b[9:0] << 8)}; shift_amtB = 8; end
-            10'b000000001z: begin sub_manB = {1'b1, (b[9:0] << 9)}; shift_amtB = 9; end
-            10'b0000000001: begin sub_manB = {1'b1, (b[9:0] << 10)}; shift_amtB = 10; end
-            default:         begin sub_manB = {1'b1, b[9:0]}; shift_amtB = 0; end
-        endcase
-    end
-
-    //get new exponent (7-bit to capture sign bit and prevent overflow. Starts at biased 1)
     wire [6:0] sub_expA, sub_expB;
-    assign sub_expA = 7'd1 - {2'b00, shift_amtA};
-    assign sub_expB = 7'd1 - {2'b00, shift_amtB};
+    wire [9:0] adj_manA, adj_manB;
 
-    //choose between subnormal and normal.
+    subnormal_fix fixA (
+        .a(a[9:0]),
+        .adj_a(adj_manA),
+        .adj_exp_a(sub_expA)
+    );
+
+    subnormal_fix fixB (
+        .a(b[9:0]),
+        .adj_a(adj_manB),
+        .adj_exp_a(sub_expB)
+    );
+
+    assign sub_manA = {1'b1, adj_manA};
+    assign sub_manB = {1'b1, adj_manB};
+
+    // Choose between subnormal and normal.
     wire [6:0] final_expA, final_expB;
     /* verilator lint_off UNUSEDSIGNAL */ wire [10:0] final_manA, final_manB; /* verilator lint_on UNUSEDSIGNAL */
     /* verilator lint_off UNUSEDSIGNAL */ reg [10:0] final_manA_reg, final_manB_reg; /* verilator lint_on UNUSEDSIGNAL */
+
     assign final_expA = subA ? sub_expA : {2'b00, a[14:10]};
     assign final_manA = subA ? sub_manA : {1'b1, a[9:0]};
 
@@ -79,6 +62,7 @@ module DIV(
     /* verilator lint_off UNUSEDSIGNAL */ reg [24:0] prod, initial_prod; /* verilator lint_on UNUSEDSIGNAL */
 
     reciprocal_rom rec_rom_inst (.addr(final_manB[9:0]), .data_out(reciprocalB));
+
     always_ff @(posedge clk) begin
         final_manA_reg <= final_manA;
         final_manB_reg <= final_manB;
@@ -89,49 +73,52 @@ module DIV(
     // 6. Multiply & EXACT Back-Multiply Quotient Refinement
     logic [14:0] q_trial;
     logic [25:0] trial_A;
-    logic signed [27:0] diff;
+    logic signed [27:0] diff; // Kept width to avoid warning on calculation
     reg [25:0] shifted_A;
-    reg signed [27:0] B_align_signed;
-
     reg [10:0] final_manB_reg2;
 
     always_ff  @(posedge clk) begin
         tentative_exp[1] <= tentative_exp[0];
         initial_prod <= reciprocalB_reg * final_manA_reg;
         shifted_A <= {2'b00, final_manA_reg, 13'd0};
-        B_align_signed <= $signed({17'd0, final_manB_reg});
         final_manB_reg2 <= final_manB_reg;
     end
-
 
     // --- COMBINATIONAL QUOTIENT REFINEMENT ---
     logic [14:0] q_final_comb;
     logic sticky_final_comb;
 
+    // Truncated comparator bounds to save logic area
+    logic signed [14:0] diff_trunc;
+    logic signed [14:0] B_align_small;
+
     always_comb begin
         q_trial = initial_prod[24:10];
         trial_A = q_trial * final_manB_reg2;
-
         diff = $signed({2'b00, shifted_A}) - $signed({2'b00, trial_A});
 
-        if (diff >= (B_align_signed <<< 1)) begin
+        // Mathematical bounds guarantee the error magnitude fits in 15 signed bits
+        diff_trunc = diff[14:0];
+        B_align_small = {4'b0000, final_manB_reg2};
+
+        if (diff_trunc >= (B_align_small <<< 1)) begin
             q_final_comb = q_trial + 15'd2;
-            sticky_final_comb = (diff > (B_align_signed <<< 1));
-        end else if (diff >= B_align_signed) begin
+            sticky_final_comb = (diff_trunc > (B_align_small <<< 1));
+        end else if (diff_trunc >= B_align_small) begin
             q_final_comb = q_trial + 15'd1;
-            sticky_final_comb = (diff > B_align_signed);
-        end else if (diff > 0) begin
+            sticky_final_comb = (diff_trunc > B_align_small);
+        end else if (diff_trunc > 0) begin
             q_final_comb = q_trial;
             sticky_final_comb = 1'b1;
-        end else if (diff == 0) begin
+        end else if (diff_trunc == 0) begin
             q_final_comb = q_trial;
             sticky_final_comb = 1'b0;
-        end else if (diff >= -B_align_signed) begin
+        end else if (diff_trunc >= -B_align_small) begin
             q_final_comb = q_trial - 15'd1;
-            sticky_final_comb = (diff != -B_align_signed);
-        end else if (diff >= -(B_align_signed <<< 1)) begin
+            sticky_final_comb = (diff_trunc != -B_align_small);
+        end else if (diff_trunc >= -(B_align_small <<< 1)) begin
             q_final_comb = q_trial - 15'd2;
-            sticky_final_comb = (diff != -(B_align_signed <<< 1));
+            sticky_final_comb = (diff_trunc != -(B_align_small <<< 1));
         end else begin
             q_final_comb = q_trial - 15'd3;
             sticky_final_comb = 1'b1;
@@ -142,7 +129,6 @@ module DIV(
     always_ff @(posedge clk) begin
         tentative_exp[2] <= tentative_exp[1];
 
-        // Assemble 25-bit product
         if (sticky_final_comb) begin
             prod <= ({q_final_comb, 10'd0}) | 25'd1;
         end else begin
@@ -170,16 +156,9 @@ module DIV(
     assign underflow = normalised_exp[6] | (~|normalised_exp);
     assign underflow_amt = normalised_exp[6] ? -normalised_exp : normalised_exp;
 
-    // FMUL-style mask: comparator loop instead of barrel shifter + subtractor
-    reg [24:0] underflow_mask;
-    always_comb begin
-        underflow_mask = 25'd0;
-        for (int i = 0; i < 25; i++) begin
-            /* verilator lint_off WIDTHEXPAND */
-            underflow_mask[i] = (i < (underflow_amt + 1));
-            /* verilator lint_on WIDTHEXPAND */
-        end
-    end
+    // Shift-based mask replaces 25-iteration comparator loop
+    wire [24:0] underflow_mask;
+    assign underflow_mask = ~(25'h1FFFFFF << (underflow_amt + 1));
 
     assign raw_tentative_S = |(normalised_prod & underflow_mask);
     assign tentative_S = underflow ? raw_tentative_S : 1'b0;
@@ -213,7 +192,6 @@ module DIV(
     assign normal_ans[14:10] = (ans_exp_0 > 7'd30) ? 5'b11111 : ans_exp_0[4:0];
     assign normal_ans[9:0] = (ans_exp_0 > 7'd30) ? 10'd0 : ans_man_1;
 
-
     // 13. FLAGS & OVERRIDES:
     wire nanA   = expA_max & (~manA_zero);
     wire nanB   = expB_max & (~manB_zero);
@@ -221,7 +199,6 @@ module DIV(
     wire infinB = expB_max & manB_zero;
     wire A0     = expA_zero & manA_zero;
     wire B0     = expB_zero & manB_zero;
-
 
     reg [2:0][15:0] special_ans;
     reg [2:0] special_flag;
