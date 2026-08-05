@@ -3,36 +3,32 @@
 module FMUL (
     input logic [15:0] a,b,
     input logic clk,
+    input logic nanA, nanB, infinA, infinB, A0, B0,
     output logic [15:0] ans
 );
-    //check for special cases 0, infinity, Nan;
+    //check for subnormality
     wire expA_zero = (a[14:10] == 5'd0);
     wire expB_zero = (b[14:10] == 5'd0);
-    wire expA_max  = (a[14:10] == 5'b11111);
-    wire expB_max  = (b[14:10] == 5'b11111);
-
     wire manA_zero = (a[9:0] == 10'd0);
     wire manB_zero = (b[9:0] == 10'd0);
 
-    wire nanA   = expA_max & (~manA_zero);
-    wire nanB   = expB_max & (~manB_zero);
-    wire infinA = expA_max & manA_zero;
-    wire infinB = expB_max & manB_zero;
-    wire A0     = expA_zero & manA_zero;
-    wire B0     = expB_zero & manB_zero;
-
+    // Shared sign bit from top
     wire sign_bit = a[15] ^ b[15];
 
-    // 1. Optimize Exception Pipeline Registers
+    // 1. Exception Pipeline Registers (shared flag handling from top)
     // Encode special case into 2 bits to save flip-flops
     logic [1:0] special_type;
+    wire special = nanA | nanB | infinA | infinB | A0 | B0;
     always_comb begin
         if (nanA || nanB || (A0 && infinB) || (infinA && B0)) begin
             special_type = 2'b10; // NaN
         end else if (infinA || infinB) begin
             special_type = 2'b01; // Infinity
-        end else begin
+        end else if (!special) begin
             special_type = 2'b00; // Zero
+        end else begin
+            // Handle subnormal case as Zero output for consistency
+            special_type = 2'b00;
         end
     end
 
@@ -129,12 +125,9 @@ module FMUL (
     assign ans_corrected_0[14:10] = overflow ? 5'b11111 : final_exp[4:0];
     assign ans_corrected_0[9:0] = overflow ? 10'd0 : right_mantissa;
 
-    wire special = nanA | nanB | infinA | infinB | A0 | B0;
-
     // Pipeline only the minimal 3-bit state rather than a 17-bit vector
     reg [1:0] special_type_reg;
     reg special_reg;
-    reg sign_bit_reg;
     always_ff @(posedge clk) begin
         special_type_reg <= special_type;
         special_reg <= special;

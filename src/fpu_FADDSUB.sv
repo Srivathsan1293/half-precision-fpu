@@ -4,29 +4,18 @@ module addsub(
     input logic [15:0] a,b,
     input logic clk,
     input logic sub,
+    input logic nanA, nanB, infinA, infinB, A0, B0,
     output logic [15:0] ans
 );
-    //gettin flags for special case answers
+    //gettin flags for special case answers (shared from top)
     wire expA_zero = (a[14:10] == 5'd0);
     wire expB_zero = (b[14:10] == 5'd0);
-    wire expA_max  = (a[14:10] == 5'b11111);
-    wire expB_max  = (b[14:10] == 5'b11111);
     wire manA_zero = (a[9:0] == 10'd0);
     wire manB_zero = (b[9:0] == 10'd0);
 
-    reg nanA, nanB, infinA, infinB, zeroA, zeroB;
-
-    always_ff @(posedge clk) begin
-        nanA   <= expA_max & (~manA_zero);
-        nanB   <= expB_max & (~manB_zero);
-        infinA <= expA_max & manA_zero;
-        infinB <= expB_max & manB_zero;
-        zeroA  <= expA_zero & manA_zero;
-        zeroB  <= expB_zero & manB_zero;
-    end
-
-    //if subtraction then flip sign B
-    wire signA = a[15]; wire signB = sub ? ~b[15] : b[15];
+    // Shared sign bits from top
+    wire signA = a[15];
+    wire signB = sub ? ~b[15] : b[15];
 
     //splitting inputs
     wire [6:0] init_expA = {2'b00, a[14:10]};
@@ -195,6 +184,7 @@ module addsub(
     assign ans_calculated[14:10] = overflow ? 5'b11111 : exp_packed;
     assign ans_calculated[9:0] = overflow ? 10'd0 : man;
 
+    // Shared sign registers from top
     reg signA_reg, signB_reg;
 
     always_ff @(posedge clk) begin
@@ -208,13 +198,14 @@ module addsub(
 
         if (nanA || nanB) begin
             ans_corrected = {1'b0, 5'b11111, 10'b1000000000};
-        end else if (infinA && infinB && subtract_reg) begin
+        end else if (infinA && infinB) begin
+            // Subnormal subtraction produces NaN/Inf override
             ans_corrected = {1'b0, 5'b11111, 10'b1000000000};
         end else if (infinA) begin
             ans_corrected = {signA_reg, 5'b11111, 10'd0};
         end else if (infinB) begin
             ans_corrected = {signB_reg, 5'b11111, 10'd0};
-        end else if (zeroA && zeroB) begin
+        end else if (A0 && B0) begin
             ans_corrected = {(signA_reg & signB_reg), 15'd0};
         end
     end

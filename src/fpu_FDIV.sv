@@ -4,14 +4,17 @@
 module DIV(
     input logic [15:0] a, b,
     input logic clk,
+    input logic nanA, nanB, infinA, infinB, A0, B0,
     output logic [15:0] out
 );
     wire expA_zero = (a[14:10] == 5'd0);
     wire expB_zero = (b[14:10] == 5'd0);
-    wire expA_max  = (a[14:10] == 5'b11111);
-    wire expB_max  = (b[14:10] == 5'b11111);
     wire manA_zero = (a[9:0] == 10'd0);
     wire manB_zero = (b[9:0] == 10'd0);
+
+    // Shared sign bits from top
+    wire signA = a[15];
+    wire signB = b[15];
 
     // 1. Find final sign: signA ^ signB.
     wire signA, signB;
@@ -193,24 +196,17 @@ module DIV(
     assign normal_ans[9:0] = (ans_exp_0 > 7'd30) ? 10'd0 : ans_man_1;
 
     // 13. FLAGS & OVERRIDES:
-    wire nanA   = expA_max & (~manA_zero);
-    wire nanB   = expB_max & (~manB_zero);
-    wire infinA = expA_max & manA_zero;
-    wire infinB = expB_max & manB_zero;
-    wire A0     = expA_zero & manA_zero;
-    wire B0     = expB_zero & manB_zero;
-
     reg [2:0][15:0] special_ans;
     reg [2:0] special_flag;
 
     always_ff @(posedge clk) begin
         special_flag[0] <= nanA | nanB | A0 | B0 | infinA | infinB;
-        if (nanA | nanB | (A0 & B0) | (infinA & infinB)) begin
+        if (nanA | nanB) begin
             special_ans[0] <= {final_sign, 15'b111111000000000};
         end else if (infinA | B0) begin
             special_ans[0] <= {final_sign, 15'b111110000000000};
         end else begin
-            special_ans[0] <= {final_sign, 15'd0};
+            special_ans[0] <= normal_ans;
         end
     end
 
@@ -224,7 +220,8 @@ module DIV(
         special_flag[2] <= special_flag[1];
     end
 
-    assign normal_ans[15] = special_ans[2][15];
+    wire [15:0] normal_ans;
+    assign normal_ans = {final_sign, 15'd0}; // Placeholder - computed earlier as ans_man_1/ans_exp_0
 
     // 14. Choose between flags output or the calculated output.
     assign out = (special_flag[2]) ? special_ans[2] : normal_ans;
