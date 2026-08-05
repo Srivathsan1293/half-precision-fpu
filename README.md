@@ -21,17 +21,17 @@ A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with mu
 
 ## PPA (Sky130 @ 25C, 1.80 V, pipelined)
 
-Synthesis: Yosys + ABC (Sky130). Timing/Power: OpenSTA with a virtual 10 ns clock and 10% input toggle rate. FDIV area excludes the reciprocal ROM (kept black-boxed; standalone 1,024x16 ROM).
+Synthesis: Yosys + ABC (Sky130). Timing/Power: OpenSTA with a virtual 10 ns clock and 10% input toggle rate. FDIV area/power include the reciprocal ROM synthesized as a logic mux-tree (1,024-entry).
 
 | Module | Stages | Cells | Area | Critical Path (LTP) | Fmax | Power |
 |--------|--------|-------|------|---------------------|------|-------|
 | FMUL | 2 | 1,053 | 7,680 um^2 | **8.29 ns** | 120.7 MHz | 1.81 mW |
 | FADDSUB | 2 | 721 | 4,917 um^2 | **8.30 ns** | 120.5 MHz | 1.24 mW |
-| FDIV | 3 | 2,415 | 17,168 um^2 | **9.54 ns** | 104.8 MHz | 0.75 mW |
+| FDIV | 3 | 2,926 | 19,596 um^2 | **8.61 ns** | 116.2 MHz | 15.5 mW |
 
 Latency = stages x 10 ns clock period; throughput = one result per cycle after pipeline fill (Fmax above).
 
-## FDIV Optimization: 19.61 ns -> 9.54 ns
+## FDIV Optimization: 19.61 ns -> 8.61 ns
 
 The FDIV module uses a reciprocal-ROM-based algorithm: look up 1/B from a ROM, multiply by A, then perform a back-multiply quotient refinement (q_trial * B) and compare the result against the shifted dividend to correct the quotient.
 
@@ -49,11 +49,11 @@ Yosys 0.66 -> ABC (strash + dc2 + dch + timing-driven map)
 
 Default ABC mapping produces a 19.61 ns combinational critical path. Adding ABC's timing-driven gate sizing (`-D` + `-constr` flags) triggers `upsize`/`dnsize`/`buffer` passes that replace weak drive-strength cells with faster `_2`/`_4` variants, reducing the path by 27% to 14.32 ns.
 
-### Pipelining: 14.32 ns -> 9.54 ns
+### Pipelining: 14.32 ns -> 8.61 ns
 
 Breaking past the 14.32 ns combinational limit required splitting the datapath with pipeline registers:
 
-- **FDIV**: 3-stage pipeline -> longest stage 9.54 ns (104.8 MHz)
+- **FDIV**: 3-stage pipeline -> longest stage 8.61 ns (116.2 MHz)
 - **FMUL**: 2-stage pipeline -> longest stage 8.29 ns (120.7 MHz)
 - **FADDSUB**: 2-stage pipeline -> longest stage 8.30 ns (120.5 MHz)
 
@@ -71,7 +71,7 @@ All modules verified exhaustively (every combination of two half-precision input
 
 ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectural hints (carry-select, parallel comparators). The 14.32 ns fixed point is a fundamental limit of the algorithm's logic depth in Sky130.
 
-### Beyond 9.54 ns
+### Beyond 8.61 ns
 
 - Use a different division algorithm (Goldschmidt, SRT)
 - Add more pipeline stages or a faster reciprocal ROM
