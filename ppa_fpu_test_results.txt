@@ -2,34 +2,43 @@
 PPA Results: fpu_test Top Module (Sky130)
 ============================================
 Top Module: fpu_test.sv (FMUL + FADDSUB + FDIV)
-Synthesis: Yosys + ABC with sky130_fd_sc_hd__tt_025C_1v80.lib
+Synthesis: Yosys + ABC (mfs2 flow) with sky130_fd_sc_hd__tt_025C_1v80.lib
 
 === SYNTHESIS STATISTICS ===
-Cells: 4,588
-Chip area: 31,226 um^2
+Cells: 5,635
+Chip area: 31,764 um^2
 
 === CRITICAL PATH TIMING (LTP) ===
 
-Setup Slack: 1.467 ns (MET)
+Setup Slack: 2.577 ns (MET)
 Critical path: Flip-Flop -> combinational logic -> Flip-Flop
 Timing period: 10.0 ns
-Operating frequency: ~119 MHz (limited by setup slack)
+Operating frequency: ~134.8 MHz (limited by setup slack)
 
-Longest stage: 8.40 ns combinational path (FDIV back-multiply/correct stage)
+Longest stage: 7.42 ns combinational path (FDIV back-multiply/correct stage)
 
 === POWER ESTIMATION ===
 Toggle rate: 10% (user-specified)
 Temperature: 25°C (from Liberty library)
 Voltage: 1.8V (from Liberty library)
 
-Total Power: 19.9 mW
-├── Sequential (flip-flops):    1.51 mW (7.6%)
-├── Combinational:              18.4 mW (92.4%)
+Total Power: 18.5 mW
+├── Sequential (flip-flops):    1.51 mW (8.2%)
+├── Combinational:              17.0 mW (91.8%)
 └── Leakage:                    negligible
 
 === VERIFICATION ===
 Exhaustive IEEE-754 testbench (tb_fpu.cpp): 0 failures across all 4 ops
 (ADD/SUB/MUL/DIV) x every (a,b) input pair, NaN-tolerant comparison.
+mfs2-flow netlist additionally verified: 0 failures over 200k random
+inputs x 4 ops (800k checks).
+
+=== SYNTHESIS SCRIPT NOTE ===
+The ABC script uses the Yosys default + mfs2 + timing-driven map:
+  strash;ifraig;scorr;dc2;dretime;strash;&get -n;&dch -f;&nf -v;&put;mfs2;
+  strash;&get -n;&dch -f;&nf -v;&put;map -D 9000
+vs. default script (area 31,226 um^2, 8.40 ns, 19.9 mW): +1.7% area,
+-7% power, -0.98 ns critical path.
 
 === TO RUN PPA ===
 1. Synthesize with Yosys:

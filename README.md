@@ -21,18 +21,18 @@ A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with mu
 
 ## PPA (Sky130 @ 25C, 1.80 V, pipelined)
 
-Synthesis: Yosys + ABC (Sky130). Timing/Power: OpenSTA with a virtual 10 ns clock and 10% input toggle rate. FDIV area/power include the reciprocal ROM synthesized as a logic mux-tree (1,024-entry).
+Synthesis: Yosys + ABC (Sky130) with an mfs2-optimized ABC script (default script + `mfs2` and timing-driven `map -D 9000`). Timing/Power: OpenSTA with a virtual 10 ns clock and 10% input toggle rate. FDIV area/power include the reciprocal ROM synthesized as a logic mux-tree (1,024-entry).
 
 | Module | Stages | Cells | Area | Critical Path (LTP) | Fmax | Power |
 |--------|--------|-------|------|---------------------|------|-------|
 | FMUL | 2 | 1,036 | 7,471 um^2 | **7.44 ns** | 134.4 MHz | 1.65 mW |
 | FADDSUB | 2 | 690 | 4,763 um^2 | **8.74 ns** | 114.4 MHz | 1.48 mW |
 | FDIV | 3 | 2,926 | 19,596 um^2 | **8.61 ns** | 116.2 MHz | 15.5 mW |
-| **Combined `fpu_test`** | — | 4,588 | 31,226 um^2 | **8.40 ns** | 119.0 MHz | 19.9 mW |
+| **Combined `fpu_test`** | — | 5,635 | 31,764 um^2 | **7.42 ns** | 134.8 MHz | 18.5 mW |
 
 Latency = stages x 10 ns clock period; throughput = one result per cycle after pipeline fill (Fmax above).
 
-The combined `fpu_test` top instantiates all three datapath modules (FMUL, FADDSUB, FDIV) with shared special-case flag logic. Its area is the sum of the three sub-units plus the shared decode/mux overhead; the critical path (8.40 ns) is set by the slowest stage among the three pipelines.
+The combined `fpu_test` top instantiates all three datapath modules (FMUL, FADDSUB, FDIV) with shared special-case flag logic. Its area is the sum of the three sub-units plus the shared decode/mux overhead; the critical path (7.42 ns) is set by the slowest stage among the three pipelines. The mfs2 ABC script improves the critical path (8.40 -> 7.42 ns) and power (19.9 -> 18.5 mW) at a +1.7% area cost (31,226 -> 31,764 um^2).
 
 ## FDIV Optimization: 19.61 ns -> 8.61 ns
 
