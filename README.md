@@ -28,8 +28,11 @@ Synthesis: Yosys + ABC (Sky130). Timing/Power: OpenSTA with a virtual 10 ns cloc
 | FMUL | 2 | 1,036 | 7,471 um^2 | **7.44 ns** | 134.4 MHz | 1.65 mW |
 | FADDSUB | 2 | 690 | 4,763 um^2 | **8.74 ns** | 114.4 MHz | 1.48 mW |
 | FDIV | 3 | 2,926 | 19,596 um^2 | **8.61 ns** | 116.2 MHz | 15.5 mW |
+| **Combined `fpu_test`** | — | 4,588 | 31,226 um^2 | **8.40 ns** | 119.0 MHz | 19.9 mW |
 
 Latency = stages x 10 ns clock period; throughput = one result per cycle after pipeline fill (Fmax above).
+
+The combined `fpu_test` top instantiates all three datapath modules (FMUL, FADDSUB, FDIV) with shared special-case flag logic. Its area is the sum of the three sub-units plus the shared decode/mux overhead; the critical path (8.40 ns) is set by the slowest stage among the three pipelines.
 
 ## FDIV Optimization: 19.61 ns -> 8.61 ns
 
@@ -57,7 +60,7 @@ Breaking past the 14.32 ns combinational limit required splitting the datapath w
 - **FMUL**: 2-stage pipeline -> longest stage 7.44 ns (134.4 MHz)
 - **FADDSUB**: 2-stage pipeline -> longest stage 8.74 ns (114.4 MHz)
 
-All modules verified exhaustively (every combination of two half-precision inputs) with Verilator: 0 mismatches vs. the golden model across NaN/Inf/zero/subnormal/normal categories.
+All modules verified exhaustively (every combination of two half-precision inputs) with Verilator: 0 mismatches vs. the golden model across NaN/Inf/zero/subnormal/normal categories. The combined `fpu_test` top-level was also verified with an IEEE-754-aware golden model over all 4 operations (ADD/SUB/MUL/DIV), every `(a,b)` input pair, and NaN-tolerant comparisons: **0 failures across 4.29B combos per operation** (NaN 263.99M, Inf 253.9K, Zero 253.9K, Subnormal 255.6M, Normal 3.77B).
 
 ### Attempts that did NOT improve timing (combinational)
 
@@ -93,14 +96,18 @@ ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectu
 │   ├── fpu_FMUL.sv
 │   ├── fpu_FADDSUB.sv
 │   ├── fpu_FDIV.sv
-│   └── fpu_modules.sv
-├── tb/                     # Testbenches
+│   ├── fpu_modules.sv
+│   └── fpu_test.sv         # Combined top: FMUL + FADDSUB + FDIV
+├── tb/                     # Testbenches (tb_fpu.cpp = exhaustive)
 ├── synth_scripts/          # Yosys/OpenSTA PPA scripts
 │   ├── ppa_DIV.ys
 │   ├── sta_DIV.tcl
 │   ├── ppa_FMUL.ys
 │   ├── sta_FMUL.tcl
+│   ├── ppa_combined_top.ys # Combined fpu_test synthesis
+│   ├── sta_fpu_test.tcl    # Combined fpu_test timing/power
 │   └── ...
 ├── synth_outputs/          # Synthesized netlists and reports
+├── run_ppa.sh              # One-shot combined PPA flow
 └── testing_results/
 ```

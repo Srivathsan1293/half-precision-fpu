@@ -1,0 +1,13 @@
+# Combined Top-Level PPA (fpu_test)
+read_verilog -sv src/fpu_modules.sv
+read_verilog -sv src/fpu_FMUL.sv
+read_verilog -sv src/fpu_FADDSUB.sv
+read_verilog -sv src/fpu_FDIV.sv
+read_verilog -sv src/fpu_test.sv
+synth -top fpu_test -flatten
+read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib
+dfflibmap -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+clean
+stat -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+write_verilog -noattr synth_outputs/fpu_test_synth.v

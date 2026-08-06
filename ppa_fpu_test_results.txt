@@ -1,0 +1,42 @@
+============================================
+PPA Results: fpu_test Top Module (Sky130)
+============================================
+Top Module: fpu_test.sv (FMUL + FADDSUB + FDIV)
+Synthesis: Yosys + ABC with sky130_fd_sc_hd__tt_025C_1v80.lib
+
+=== SYNTHESIS STATISTICS ===
+Cells: 4,588
+Chip area: 31,226 um^2
+
+=== CRITICAL PATH TIMING (LTP) ===
+
+Setup Slack: 1.467 ns (MET)
+Critical path: Flip-Flop -> combinational logic -> Flip-Flop
+Timing period: 10.0 ns
+Operating frequency: ~119 MHz (limited by setup slack)
+
+Longest stage: 8.40 ns combinational path (FDIV back-multiply/correct stage)
+
+=== POWER ESTIMATION ===
+Toggle rate: 10% (user-specified)
+Temperature: 25°C (from Liberty library)
+Voltage: 1.8V (from Liberty library)
+
+Total Power: 19.9 mW
+├── Sequential (flip-flops):    1.51 mW (7.6%)
+├── Combinational:              18.4 mW (92.4%)
+└── Leakage:                    negligible
+
+=== VERIFICATION ===
+Exhaustive IEEE-754 testbench (tb_fpu.cpp): 0 failures across all 4 ops
+(ADD/SUB/MUL/DIV) x every (a,b) input pair, NaN-tolerant comparison.
+
+=== TO RUN PPA ===
+1. Synthesize with Yosys:
+   yosys synth_scripts/ppa_combined_top.ys
+
+2. Run STA with OpenSTA:
+   opensta synth_scripts/sta_fpu_test.tcl
+
+OR run the automated script:
+   ./run_ppa.sh
