@@ -86,12 +86,15 @@ module DIV(
     end
 
     // --- COMBINATIONAL QUOTIENT REFINEMENT ---
-    logic [14:0] q_final_comb;
+    logic signed [14:0] q_final_comb;
     logic sticky_final_comb;
 
     // Truncated comparator bounds to save logic area
     logic signed [14:0] diff_trunc;
     logic signed [14:0] B_align_small;
+    logic signed [14:0] B2;
+    logic signed [3:0] corr;
+    logic ge2B, geB, gt0, eq0, genB, gen2B;
 
     always_comb begin
         q_trial = initial_prod[24:10];
@@ -101,29 +104,25 @@ module DIV(
         // Mathematical bounds guarantee the error magnitude fits in 15 signed bits
         diff_trunc = diff[14:0];
         B_align_small = {4'b0000, final_manB_reg2};
+        B2 = B_align_small <<< 1;
 
-        if (diff_trunc >= (B_align_small <<< 1)) begin
-            q_final_comb = q_trial + 15'd2;
-            sticky_final_comb = (diff_trunc > (B_align_small <<< 1));
-        end else if (diff_trunc >= B_align_small) begin
-            q_final_comb = q_trial + 15'd1;
-            sticky_final_comb = (diff_trunc > B_align_small);
-        end else if (diff_trunc > 0) begin
-            q_final_comb = q_trial;
-            sticky_final_comb = 1'b1;
-        end else if (diff_trunc == 0) begin
-            q_final_comb = q_trial;
-            sticky_final_comb = 1'b0;
-        end else if (diff_trunc >= -B_align_small) begin
-            q_final_comb = q_trial - 15'd1;
-            sticky_final_comb = (diff_trunc != -B_align_small);
-        end else if (diff_trunc >= -(B_align_small <<< 1)) begin
-            q_final_comb = q_trial - 15'd2;
-            sticky_final_comb = (diff_trunc != -(B_align_small <<< 1));
-        end else begin
-            q_final_comb = q_trial - 15'd3;
-            sticky_final_comb = 1'b1;
-        end
+        // Parallel predicate encoding of the correction tree (single shared adder)
+        ge2B = (diff_trunc >= B2);
+        geB  = (diff_trunc >= B_align_small);
+        gt0  = (diff_trunc > 0);
+        eq0  = (diff_trunc == 0);
+        genB = (diff_trunc >= -B_align_small);
+        gen2B= (diff_trunc >= -B2);
+
+        corr = ge2B ? 4'd2 : geB ? 4'd1 : gt0 ? 4'd0 : eq0 ? 4'd0
+             : genB ? -4'sd1 : gen2B ? -4'sd2 : -4'sd3;
+        q_final_comb = $signed({1'b0, q_trial}) + corr;
+
+        sticky_final_comb = ge2B ? (diff_trunc > B2)
+                          : geB ? (diff_trunc > B_align_small)
+                          : gt0 ? 1'b1 : eq0 ? 1'b0
+                          : genB ? (diff_trunc != -B_align_small)
+                          : gen2B ? (diff_trunc != -B2) : 1'b1;
     end
 
     // --- CYCLE 3 REGISTER ---
