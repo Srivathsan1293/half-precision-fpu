@@ -5,8 +5,25 @@
 #include <verilated.h>
 #include "Vfpu_test.h"
 
-// Golden Reference: True IEEE-754 Native C++ Engine for all 4 operations
+// Golden Reference: True IEEE-754 Native C++ Engine for all 4 operations.
+// IEEE-754 aware: 0/0, inf/inf, inf-inf are NaN (sign/payload unspecified),
+// regardless of the _Float16 soft-float quirk that returns -Inf for these.
+uint16_t ieee_quiet_nan() { return 0x7E00; }
+
+bool is_nan16(uint16_t x) {
+    return ((x >> 10) & 0x1F) == 31 && (x & 0x03FF) != 0;
+}
+
+bool is_inf16(uint16_t x) {
+    return ((x >> 10) & 0x1F) == 31 && (x & 0x03FF) == 0;
+}
+
+bool is_zero16(uint16_t x) {
+    return ((x >> 10) & 0x1F) == 0 && (x & 0x03FF) == 0;
+}
+
 uint16_t compute_golden_add(uint16_t a, uint16_t b) {
+    if (is_nan16(a) || is_nan16(b)) return ieee_quiet_nan();
     _Float16 float_A, float_B, float_ans;
     std::memcpy(&float_A, &a, sizeof(uint16_t));
     std::memcpy(&float_B, &b, sizeof(uint16_t));
@@ -17,6 +34,13 @@ uint16_t compute_golden_add(uint16_t a, uint16_t b) {
 }
 
 uint16_t compute_golden_sub(uint16_t a, uint16_t b) {
+    if (is_nan16(a) || is_nan16(b)) return ieee_quiet_nan();
+    if (is_inf16(a) && is_inf16(b)) {
+        // IEEE 754: inf - inf is NaN only for same-sign operands.
+        // +Inf - (-Inf) = +Inf, -Inf - (+Inf) = -Inf (sign of a).
+        if (((a ^ b) & 0x8000) == 0) return ieee_quiet_nan();
+        return a;
+    }
     _Float16 float_A, float_B, float_ans;
     std::memcpy(&float_A, &a, sizeof(uint16_t));
     std::memcpy(&float_B, &b, sizeof(uint16_t));
@@ -27,6 +51,7 @@ uint16_t compute_golden_sub(uint16_t a, uint16_t b) {
 }
 
 uint16_t compute_golden_mul(uint16_t a, uint16_t b) {
+    if (is_nan16(a) || is_nan16(b)) return ieee_quiet_nan();
     _Float16 float_A, float_B, float_ans;
     std::memcpy(&float_A, &a, sizeof(uint16_t));
     std::memcpy(&float_B, &b, sizeof(uint16_t));
@@ -37,6 +62,13 @@ uint16_t compute_golden_mul(uint16_t a, uint16_t b) {
 }
 
 uint16_t compute_golden_div(uint16_t a, uint16_t b) {
+    if (is_nan16(a) || is_nan16(b)) return ieee_quiet_nan();
+    if ((is_zero16(a) && is_zero16(b)) || (is_inf16(a) && is_inf16(b)))
+        return ieee_quiet_nan(); // 0/0, inf/inf = NaN
+    if (is_inf16(a) || is_zero16(b))
+        return 0x7C00 | (a ^ b) & 0x8000; // a/0, inf/b = +/-Inf
+    if (is_zero16(a) || is_inf16(b))
+        return (a ^ b) & 0x8000; // 0/b, a/inf = +/-0
     _Float16 float_A, float_B, float_ans;
     std::memcpy(&float_A, &a, sizeof(uint16_t));
     std::memcpy(&float_B, &b, sizeof(uint16_t));
@@ -139,7 +171,9 @@ int main(int argc, char** argv) {
 
                 uint16_t hw_ans = dut->ans;
 
-                if (hw_ans != expected_ans) {
+                // NaN sign/payload is unspecified by IEEE 754 - accept any NaN.
+                bool both_nan = is_nan16(expected_ans) && is_nan16(hw_ans);
+                if (!both_nan && hw_ans != expected_ans) {
                     total_failed++;
                     cat_fails[current_cat]++;
 

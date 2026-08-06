@@ -128,6 +128,7 @@ module FMUL (
     // Pipeline only the minimal 3-bit state rather than a 17-bit vector
     reg [1:0] special_type_reg;
     reg special_reg;
+    reg sign_bit_reg;
     always_ff @(posedge clk) begin
         special_type_reg <= special_type;
         special_reg <= special;

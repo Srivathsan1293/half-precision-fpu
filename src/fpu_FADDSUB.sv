@@ -198,8 +198,8 @@ module addsub(
 
         if (nanA || nanB) begin
             ans_corrected = {1'b0, 5'b11111, 10'b1000000000};
-        end else if (infinA && infinB) begin
-            // Subnormal subtraction produces NaN/Inf override
+        end else if (infinA && infinB && subtract_reg) begin
+            // inf - inf = NaN
             ans_corrected = {1'b0, 5'b11111, 10'b1000000000};
         end else if (infinA) begin
             ans_corrected = {signA_reg, 5'b11111, 10'd0};

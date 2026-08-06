@@ -17,8 +17,6 @@ module DIV(
     wire signB = b[15];
 
     // 1. Find final sign: signA ^ signB.
-    wire signA, signB;
-    assign signA = a[15]; assign signB = b[15];
     wire final_sign = signA ^ signB;
 
     // 2. Check for subnormal inputs
@@ -192,6 +190,7 @@ module DIV(
 
     // 12. OVERFLOW CHECK:
     wire [15:0] normal_ans;
+    assign normal_ans[15] = special_ans[2][15];
     assign normal_ans[14:10] = (ans_exp_0 > 7'd30) ? 5'b11111 : ans_exp_0[4:0];
     assign normal_ans[9:0] = (ans_exp_0 > 7'd30) ? 10'd0 : ans_man_1;
 
@@ -201,12 +200,12 @@ module DIV(
 
     always_ff @(posedge clk) begin
         special_flag[0] <= nanA | nanB | A0 | B0 | infinA | infinB;
-        if (nanA | nanB) begin
+        if (nanA | nanB | (A0 & B0) | (infinA & infinB)) begin
             special_ans[0] <= {final_sign, 15'b111111000000000};
         end else if (infinA | B0) begin
             special_ans[0] <= {final_sign, 15'b111110000000000};
         end else begin
-            special_ans[0] <= normal_ans;
+            special_ans[0] <= {final_sign, 15'd0};
         end
     end
 
@@ -219,9 +218,6 @@ module DIV(
         special_ans[2] <= special_ans[1];
         special_flag[2] <= special_flag[1];
     end
-
-    wire [15:0] normal_ans;
-    assign normal_ans = {final_sign, 15'd0}; // Placeholder - computed earlier as ans_man_1/ans_exp_0
 
     // 14. Choose between flags output or the calculated output.
     assign out = (special_flag[2]) ? special_ans[2] : normal_ans;

@@ -22,6 +22,9 @@ module fpu_test (
     wire A0     = expA_zero & manA_zero;
     wire B0     = expB_zero & manB_zero;
 
+    // === INTERMEDIATE OUTPUTS ===
+    wire [15:0] FADDSUB_out, FMUL_out, FDIV_out;
+
     // === INSTANTIATE MODULES (shared flag handling) ===
     addsub adder (
         .a(a), .b(b), .clk(clk), .sub(op[0]),
