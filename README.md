@@ -1,32 +1,125 @@
-# Half-Precision FPU (Sky130)
+# Half-Precision FPU (Float16)
 
-## Project Overview
-Half-precision (FP16) Floating-Point Processor supporting IEEE 754 division (DIV), multiplication (MUL), and addition/subtraction (ADD/SUB).
+A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with multiply, add/subtract, and divide operations. Synthesized for the SkyWater 130 nm open-source PDK.
 
-## Current Status: Power Reduction Achieved
+## Project Goals
 
-### PPA Results
-| Metric        | Baseline   | After    | Change     |
-|---------------|------------|----------|------------|
-| **Area**      | 31,764 µm² | 31,620 µm² | **-144 µm²** (-0.5%) |
-| **Slack**     | 2.577 ns   | 1.945 ns  | -0.63 ns (MET) |
-| **Power**     | 18.5 mW    | 15.2 mW   | **-3.3 mW** (-18%) |
+1. **IEEE 754 Compliance** — Correct rounding, NaN/Inf handling, subnormal support
+2. **High Performance** — Minimize combinational critical path delay
+3. **Pipelining** — Introduce pipeline stages to increase throughput and Fmax
+4. **Low Power** — Reduce dynamic power of the dominant power sinks (FDIV correction logic)
+5. **AXI4 Interface** — Wrap the FPU with an AXI4-Lite/AXI4-Stream interface for easy integration
+6. **CPU Integration** — Verify with a RISC-V model CPU (e.g., PicoRV32, VexRiscv) on FPGA
 
-### Functional Verification
-- Exhaustive IEEE-754 verification: **~17 billion combinations tested, 0 failures**
-- All edge cases verified (NaN, Inf, Zero, Subnormal, Normal)
-- Timing MET: Critical path 7.933 ns < 10 ns @ 100 MHz
+## Architecture
 
-### Recent Change: FDIV Correction Tree Restructuring
-Restructured the FDIV correction stage from a 7-way if/else chain with multiple adders to parallel predicate encoding with single shared adder. This eliminated ~18% of power in the correction logic (dominant power sink). See `ppa_fpu_test_results.txt` for details.
+| Module | Description |
+|--------|-------------|
+| `fpu_FMUL.sv` | Booth-encoded Wallace tree multiplier |
+| `fpu_FADDSUB.sv` | IEEE 754 compliant add/subtract |
+| `fpu_FDIV.sv` | Iterative division via reciprocal ROM |
+| `fpu_modules.sv` | Packed module definitions |
 
-## Directory Structure
-- `src/fpu_test.sv` — Top module instantiating FADD, FMUL, FDIV
-- `synth_scripts/` — Yosys scripts for synthesis and PPA analysis
-- `synth_outputs/` — Synthesized netlists
-- `tb/` — Testbenches (exhaustive + random)
+## PPA (Sky130 @ 25C, 1.80 V)
 
-## Tools Used
-- Yosys 0.66 (ABC integration via mfs2 flow)
-- OpenSTA 3.1.0 (timing/power analysis)
-- Verilator 5.050 (functional verification)
+Synthesis: Yosys + ABC (Sky130, mfs2 mapping flow). Timing/Power: OpenSTA with a virtual 10 ns clock and 10% input toggle rate. FDIV area/power include the reciprocal ROM synthesized as a logic mux-tree (1,024-entry).
+
+| Module | Stages | Cells | Area | Critical Path (LTP) | Fmax | Power |
+|--------|--------|-------|------|---------------------|------|-------|
+| FMUL | 2 | 1,387 | 7,513 um^2 | **6.94 ns** | 144.0 MHz | 1.35 mW |
+| FADDSUB | 2 | 955 | 4,933 um^2 | **8.78 ns** | 113.9 MHz | 1.15 mW |
+| FDIV | 3 | 3,475 | 19,685 um^2 | **8.97 ns** | 111.5 MHz | 11.2 mW |
+| **Combined `fpu_test`** | — | 5,590 | 31,620 um^2 | **7.93 ns** | 126.1 MHz | 15.2 mW |
+
+Latency = stages x 10 ns clock period; throughput = one result per cycle after pipeline fill (Fmax above).
+
+The combined `fpu_test` top instantiates all three datapath modules (FMUL, FADDSUB, FDIV) with shared special-case flag logic. Its area is the sum of the three sub-units plus the shared decode/mux overhead; the critical path (7.93 ns) is set by the slowest stage among the three pipelines.
+
+## FDIV Optimization: 19.61 ns -> 8.97 ns
+
+The FDIV module uses a reciprocal-ROM-based algorithm: look up 1/B from a ROM, multiply by A, then perform a back-multiply quotient refinement (q_trial * B) and compare the result against the shifted dividend to correct the quotient.
+
+The critical path is entirely combinational with three sequential operations chained:
+1. `initial_prod = reciprocalB * final_manA` (14x11 multiply)
+2. `trial_A = q_trial * final_manB` (15x11 multiply + 26-bit subtract for `diff`)
+3. Cascaded signed comparator tree (6 branches) to select `q_final`
+
+### Synthesis flow
+
+```
+Yosys 0.66 -> ABC (strash + dc2 + dch + timing-driven map)
+          -> OpenSTA 3.1.0 for timing/power analysis
+```
+
+Default ABC mapping produces a 19.61 ns combinational critical path. Adding ABC's timing-driven gate sizing (`-D` + `-constr` flags) triggers `upsize`/`dnsize`/`buffer` passes that replace weak drive-strength cells with faster `_2`/`_4` variants, reducing the path by 27% to 14.32 ns.
+
+### Pipelining: 14.32 ns -> 8.97 ns
+
+Breaking past the 14.32 ns combinational limit required splitting the datapath with pipeline registers:
+
+- **FDIV**: 3-stage pipeline -> longest stage 8.97 ns (111.5 MHz)
+- **FMUL**: 2-stage pipeline -> longest stage 6.94 ns (144.0 MHz)
+- **FADDSUB**: 2-stage pipeline -> longest stage 8.78 ns (113.9 MHz)
+
+All modules verified exhaustively (every combination of two half-precision inputs) with Verilator: 0 mismatches vs. the golden model across NaN/Inf/zero/subnormal/normal categories. The combined `fpu_test` top-level was also verified with an IEEE-754-aware golden model over all 4 operations (ADD/SUB/MUL/DIV), every `(a,b)` input pair, and NaN-tolerant comparisons: **0 failures across 4.29B combos per operation** (NaN 263.99M, Inf 253.9K, Zero 253.9K, Subnormal 255.6M, Normal 3.77B).
+
+## FDIV Power Reduction: 18.5 mW -> 15.2 mW
+
+Restructured the FDIV correction stage from a 7-way if/else chain with 5 adders and a mux to parallel predicate encoding with a single shared adder (see `src/fpu_FDIV.sv`):
+
+- Standalone FDIV: **11.2 mW** (-2.8 mW, -20%)
+- Combined `fpu_test`: **15.2 mW** (-3.3 mW, -18%)
+- Area: 31,764 -> **31,620 um^2** (-144 um^2, -0.5%)
+- Slack: 2.577 ns -> 1.945 ns (still MET at 100 MHz)
+
+The correction stage was the dominant power sink (~18% of FDIV power); the minor timing penalty (0.51 ns path regression) is acceptable for the power saving. Verified: combinatorial equivalence over all 67M `(diff, B)` pairs (0 mismatches) and exhaustive IEEE-754 verification (~17B combos, 0 failures).
+
+### Attempts that did NOT improve timing (combinational)
+
+| Attempt | Result |
+|---------|--------|
+| Carry-select adder for `diff` (4-bit blocks) | 15.97 ns (worse) |
+| Parallel comparator tree (replace if-else cascade) | 14.80 ns (worse) |
+| Yosys `opt -full` + ABC | 14.32 ns (identical) |
+| Custom ABC delay scripts (balance/rewrite) | identical or failed |
+| ABC `if` mapper | unavailable in Yosys 0.66 |
+
+ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectural hints (carry-select, parallel comparators). The 14.32 ns fixed point is a fundamental limit of the algorithm's logic depth in Sky130.
+
+### Beyond 8.97 ns
+
+- Use a different division algorithm (Goldschmidt, SRT)
+- Add more pipeline stages or a faster reciprocal ROM
+- Move to a faster technology node
+
+## Tools
+
+- **RTL**: SystemVerilog
+- **Synthesis**: Yosys 0.66 + ABC (Sky130 cell library)
+- **Timing/Power**: OpenSTA 3.1.0
+- **Simulation**: Verilator / Icarus Verilog
+- **PDK**: SkyWater 130 nm (`sky130_fd_sc_hd`)
+
+## Project Structure
+
+```
+.
+├── src/
+│   ├── fpu_FMUL.sv
+│   ├── fpu_FADDSUB.sv
+│   ├── fpu_FDIV.sv
+│   ├── fpu_modules.sv
+│   └── fpu_test.sv         # Combined top: FMUL + FADDSUB + FDIV
+├── tb/                     # Testbenches (tb_fpu.cpp = exhaustive)
+├── synth_scripts/          # Yosys/OpenSTA PPA scripts
+│   ├── ppa_DIV.ys
+│   ├── sta_DIV.tcl
+│   ├── ppa_FMUL.ys
+│   ├── sta_FMUL.tcl
+│   ├── ppa_combined_top.ys # Combined fpu_test synthesis
+│   ├── sta_fpu_test.tcl    # Combined fpu_test timing/power
+│   └── ...
+├── synth_outputs/          # Synthesized netlists and reports
+├── run_ppa.sh              # One-shot combined PPA flow
+└── testing_results/
+```
