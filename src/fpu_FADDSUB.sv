@@ -8,6 +8,7 @@ module addsub(
     output logic [15:0] ans
 );
     //gettin flags for special case answers (shared from top)
+    /* verilator lint_off UNUSEDSIGNAL */
     wire expA_zero = (a[14:10] == 5'd0);
     wire expB_zero = (b[14:10] == 5'd0);
     wire manA_zero = (a[9:0] == 10'd0);
@@ -50,7 +51,6 @@ module addsub(
         end
     end
 
-    wire [6:0] final_exp = A_is_smaller ? corrected_expB : corrected_expA;
     wire final_sign = A_is_smaller ? signB : signA;
     wire subtract = signA ^ signB;
     //finding manA - manB and normalising
@@ -69,12 +69,23 @@ module addsub(
     logic [6:0] exp_fixing;
     reg subtract_reg;
     reg sign_reg;
+    reg [6:0] final_exp_reg;
+    reg nanA_reg, nanB_reg, infinA_reg, infinB_reg, A0_reg, B0_reg;
 
-
+    // final_exp and the special flags must be registered in the SAME cycle as
+    // pre_norm_man so the normalization stage and the special-case override
+    // both operate on the same input set (no cross-cycle contamination).
     always_ff @(posedge clk) begin
         subtract_reg <= subtract;
         sign_reg <= sign;
+        final_exp_reg <= A_is_smaller ? corrected_expB : corrected_expA;
         pre_norm_man <= {addsub_man, 7'b0};
+        nanA_reg <= nanA;
+        nanB_reg <= nanB;
+        infinA_reg <= infinA;
+        infinB_reg <= infinB;
+        A0_reg <= A0;
+        B0_reg <= B0;
     end
 
     always_comb begin
@@ -83,24 +94,24 @@ module addsub(
             man_fixing = 22'd0;
         end else begin
             casez (pre_norm_man)
-                22'b1zzzzzzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp + 1; man_fixing = pre_norm_man >> 1; man_fixing[0] = pre_norm_man[0]; end
-                22'b01zzzzzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp; man_fixing = pre_norm_man; end
-                22'b001zzzzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp - 1; man_fixing = pre_norm_man << 1; end
-                22'b0001zzzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp - 2; man_fixing = pre_norm_man << 2; end
-                22'b00001zzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp - 3; man_fixing = pre_norm_man << 3; end
-                22'b000001zzzzzzzzzzzzzzzz: begin exp_fixing = final_exp - 4; man_fixing = pre_norm_man << 4; end
-                22'b0000001zzzzzzzzzzzzzzz: begin exp_fixing = final_exp - 5; man_fixing = pre_norm_man << 5; end
-                22'b00000001zzzzzzzzzzzzzz: begin exp_fixing = final_exp - 6; man_fixing = pre_norm_man << 6; end
-                22'b000000001zzzzzzzzzzzzz: begin exp_fixing = final_exp - 7; man_fixing = pre_norm_man << 7; end
-                22'b0000000001zzzzzzzzzzzz: begin exp_fixing = final_exp - 8; man_fixing = pre_norm_man << 8; end
-                22'b00000000001zzzzzzzzzzz: begin exp_fixing = final_exp - 9; man_fixing = pre_norm_man << 9; end
-                22'b000000000001zzzzzzzzzz: begin exp_fixing = final_exp - 10; man_fixing = pre_norm_man << 10; end
-                22'b0000000000001zzzzzzzzz: begin exp_fixing = final_exp - 11; man_fixing = pre_norm_man << 11; end
-                22'b00000000000001zzzzzzzz: begin exp_fixing = final_exp - 12; man_fixing = pre_norm_man << 12; end
-                22'b000000000000001zzzzzzz: begin exp_fixing = final_exp - 13; man_fixing = pre_norm_man << 13; end
-                22'b0000000000000001zzzzzz: begin exp_fixing = final_exp - 14; man_fixing = pre_norm_man << 14; end
-                22'b00000000000000001zzzzz: begin exp_fixing = final_exp - 15; man_fixing = pre_norm_man << 15; end
-                default: begin exp_fixing = final_exp; man_fixing = pre_norm_man; end
+                22'b1zzzzzzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp_reg + 1; man_fixing = pre_norm_man >> 1; man_fixing[0] = pre_norm_man[0]; end
+                22'b01zzzzzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp_reg; man_fixing = pre_norm_man; end
+                22'b001zzzzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp_reg - 1; man_fixing = pre_norm_man << 1; end
+                22'b0001zzzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp_reg - 2; man_fixing = pre_norm_man << 2; end
+                22'b00001zzzzzzzzzzzzzzzzz: begin exp_fixing = final_exp_reg - 3; man_fixing = pre_norm_man << 3; end
+                22'b000001zzzzzzzzzzzzzzzz: begin exp_fixing = final_exp_reg - 4; man_fixing = pre_norm_man << 4; end
+                22'b0000001zzzzzzzzzzzzzzz: begin exp_fixing = final_exp_reg - 5; man_fixing = pre_norm_man << 5; end
+                22'b00000001zzzzzzzzzzzzzz: begin exp_fixing = final_exp_reg - 6; man_fixing = pre_norm_man << 6; end
+                22'b000000001zzzzzzzzzzzzz: begin exp_fixing = final_exp_reg - 7; man_fixing = pre_norm_man << 7; end
+                22'b0000000001zzzzzzzzzzzz: begin exp_fixing = final_exp_reg - 8; man_fixing = pre_norm_man << 8; end
+                22'b00000000001zzzzzzzzzzz: begin exp_fixing = final_exp_reg - 9; man_fixing = pre_norm_man << 9; end
+                22'b000000000001zzzzzzzzzz: begin exp_fixing = final_exp_reg - 10; man_fixing = pre_norm_man << 10; end
+                22'b0000000000001zzzzzzzzz: begin exp_fixing = final_exp_reg - 11; man_fixing = pre_norm_man << 11; end
+                22'b00000000000001zzzzzzzz: begin exp_fixing = final_exp_reg - 12; man_fixing = pre_norm_man << 12; end
+                22'b000000000000001zzzzzzz: begin exp_fixing = final_exp_reg - 13; man_fixing = pre_norm_man << 13; end
+                22'b0000000000000001zzzzzz: begin exp_fixing = final_exp_reg - 14; man_fixing = pre_norm_man << 14; end
+                22'b00000000000000001zzzzz: begin exp_fixing = final_exp_reg - 15; man_fixing = pre_norm_man << 15; end
+                default: begin exp_fixing = final_exp_reg; man_fixing = pre_norm_man; end
             endcase
         end
     end
@@ -196,20 +207,21 @@ module addsub(
     always_comb begin
         ans_corrected = ans_calculated;
 
-        if (nanA || nanB) begin
+        if (nanA_reg || nanB_reg) begin
             ans_corrected = {1'b0, 5'b11111, 10'b1000000000};
-        end else if (infinA && infinB && subtract_reg) begin
-            // inf - inf = NaN
+        end else if (infinA_reg && infinB_reg && subtract_reg) begin
+            // inf - inf = NaN (only when effective signs are equal, i.e. subtract)
             ans_corrected = {1'b0, 5'b11111, 10'b1000000000};
-        end else if (infinA) begin
+        end else if (infinA_reg) begin
             ans_corrected = {signA_reg, 5'b11111, 10'd0};
-        end else if (infinB) begin
+        end else if (infinB_reg) begin
             ans_corrected = {signB_reg, 5'b11111, 10'd0};
-        end else if (A0 && B0) begin
+        end else if (A0_reg && B0_reg) begin
             ans_corrected = {(signA_reg & signB_reg), 15'd0};
         end
     end
 
     assign ans = ans_corrected;
 
+/* verilator lint_on UNUSEDSIGNAL */
 endmodule

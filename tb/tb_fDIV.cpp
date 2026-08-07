@@ -79,6 +79,9 @@ int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     Vfpu_test* dut = new Vfpu_test;
 
+    // Select DIV operation on the combined FPU top-level (op=3)
+    dut->op = 3;
+
     // Create results directory
     #if defined(_WIN32)
     _mkdir("testing_results");
@@ -106,15 +109,15 @@ int main(int argc, char** argv) {
     uint64_t cat_totals[CAT_COUNT] = {0};
     uint64_t cat_fails[CAT_COUNT]  = {0};
 
-    // 3-cycle history buffers to track inputs traveling through the pipeline
-    uint16_t hist_A[3] = {0, 0, 0};
-    uint16_t hist_B[3] = {0, 0, 0};
+    // 4-cycle history buffers to track inputs traveling through the pipeline
+    uint16_t hist_A[4] = {0, 0, 0, 0};
+    uint16_t hist_B[4] = {0, 0, 0, 0};
 
     uint64_t update_interval = total_combinations / 100;
     int bar_width = 50;
 
     std::cout << "--- Starting Pipelined FDIV Hardware Test ---" << std::endl;
-    std::cout << "Pipeline Depth: 3 Clock Cycles\n";
+    std::cout << "Pipeline Depth: 4 Clock Cycles\n";
     std::cout << "Testing 4,294,967,296 combinations...\n\n";
 
     for (uint32_t i = 0; i <= 0xFFFF; i++) {
@@ -146,9 +149,9 @@ int main(int argc, char** argv) {
             dut->eval();
 
             // 3. CHECK THE OUTPUT BEFORE CLOCKING IT AWAY
-            if (total_tests >= 3) {
-                uint16_t check_a = hist_A[2];
-                uint16_t check_b = hist_B[2];
+            if (total_tests >= 4) {
+                uint16_t check_a = hist_A[3];
+                uint16_t check_b = hist_B[3];
 
                 // Categorize based on the inputs exiting the pipeline
                 uint16_t expA = (check_a >> 10) & 0x1F;
@@ -197,10 +200,12 @@ int main(int argc, char** argv) {
             dut->eval();
 
             // 5. Shift the history buffer for the next cycle
+            hist_A[3] = hist_A[2];
             hist_A[2] = hist_A[1];
             hist_A[1] = hist_A[0];
             hist_A[0] = a;
 
+            hist_B[3] = hist_B[2];
             hist_B[2] = hist_B[1];
             hist_B[1] = hist_B[0];
             hist_B[0] = b;
@@ -209,14 +214,14 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Flush the final 3 combinations left in the hardware pipeline
-    for (int k = 0; k < 3; k++) {
+    // Flush the final 4 combinations left in the hardware pipeline
+    for (int k = 0; k < 4; k++) {
         // Evaluate BEFORE clocking
         dut->clk = 0;
         dut->eval();
 
-        uint16_t check_a = hist_A[2];
-        uint16_t check_b = hist_B[2];
+        uint16_t check_a = hist_A[3];
+        uint16_t check_b = hist_B[3];
 
         uint16_t expected_ans = compute_golden_cpp_native(check_a, check_b);
         uint16_t hw_ans = dut->ans;
@@ -233,8 +238,10 @@ int main(int argc, char** argv) {
         dut->eval();
 
         // Shift history
+        hist_A[3] = hist_A[2];
         hist_A[2] = hist_A[1];
         hist_A[1] = hist_A[0];
+        hist_B[3] = hist_B[2];
         hist_B[2] = hist_B[1];
         hist_B[1] = hist_B[0];
     }

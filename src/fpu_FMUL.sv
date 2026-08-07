@@ -14,7 +14,6 @@ module FMUL (
 
     // Shared sign bit from top
     wire sign_bit = a[15] ^ b[15];
-
     // 1. Exception Pipeline Registers (shared flag handling from top)
     // Encode special case into 2 bits to save flip-flops
     logic [1:0] special_type;
@@ -50,7 +49,10 @@ module FMUL (
     wire [10:0] manB = subB ?  {1'b1, sub_man_b} : {1'b1, b[9:0]};
 
     wire [15:0] ans_corrected_0;
-    assign ans_corrected_0[15] = sign_bit;
+    // sign_bit is registered in the same always_ff as base_exp/prod so the
+    // arithmetic result's sign belongs to the same input set (avoids
+    // cross-cycle contamination of the sign of the product).
+    assign ans_corrected_0[15] = sign_bit_reg;
 
     // 2. Consolidate Exponent Adders
     // Calculate a single base exponent to eliminate duplicate arithmetic logic

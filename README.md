@@ -26,16 +26,16 @@ Synthesis: Yosys + ABC (Sky130, mfs2 mapping flow). Timing/Power: OpenSTA with a
 
 | Module | Stages | Cells | Area | Critical Path (LTP) | Fmax | Power |
 |--------|--------|-------|------|---------------------|------|-------|
-| FMUL | 2 | 1,387 | 7,513 um^2 | **6.94 ns** | 144.0 MHz | 1.35 mW |
-| FADDSUB | 2 | 955 | 4,933 um^2 | **8.78 ns** | 113.9 MHz | 1.15 mW |
-| FDIV | 3 | 3,475 | 19,685 um^2 | **8.97 ns** | 111.5 MHz | 11.2 mW |
-| **Combined `fpu_test`** | — | 5,590 | 31,620 um^2 | **7.93 ns** | 126.1 MHz | 15.2 mW |
+| FMUL | 1 | 1,083 | 7,417 um^2 | **7.78 ns** | 128.6 MHz | 1.76 mW |
+| FADDSUB | 1 | 773 | 5,266 um^2 | **8.39 ns** | 119.2 MHz | 1.33 mW |
+| FDIV | 4 | 2,852 | 19,699 um^2 | **8.39 ns** | 119.3 MHz | 7.83 mW |
+| **Combined `fpu_test`** | 4 | 5,635 | 33,784 um^2 | **8.15 ns** | 122.7 MHz | 9.85 mW |
 
-Latency = stages x 10 ns clock period; throughput = one result per cycle after pipeline fill (Fmax above).
+Latency = stages x 10 ns clock period; throughput = one result per cycle after pipeline fill (Fmax above). The standalone FMUL/FADDSUB rows are the single internal datapath stage; the combined `fpu_test` aligns all three pipelines to a common 4-cycle latency.
 
-The combined `fpu_test` top instantiates all three datapath modules (FMUL, FADDSUB, FDIV) with shared special-case flag logic. Its area is the sum of the three sub-units plus the shared decode/mux overhead; the critical path (7.93 ns) is set by the slowest stage among the three pipelines.
+The combined `fpu_test` top instantiates all three datapath modules (FMUL, FADDSUB, FDIV) with shared special-case flag logic. Its area is the sum of the three sub-units plus the shared decode/mux overhead; the critical path (8.15 ns) is set by the slowest stage among the three pipelines.
 
-## FDIV Optimization: 19.61 ns -> 8.97 ns
+## FDIV Optimization: 19.61 ns -> 8.39 ns
 
 The FDIV module uses a reciprocal-ROM-based algorithm: look up 1/B from a ROM, multiply by A, then perform a back-multiply quotient refinement (q_trial * B) and compare the result against the shifted dividend to correct the quotient.
 
@@ -53,15 +53,25 @@ Yosys 0.66 -> ABC (strash + dc2 + dch + timing-driven map)
 
 Default ABC mapping produces a 19.61 ns combinational critical path. Adding ABC's timing-driven gate sizing (`-D` + `-constr` flags) triggers `upsize`/`dnsize`/`buffer` passes that replace weak drive-strength cells with faster `_2`/`_4` variants, reducing the path by 27% to 14.32 ns.
 
-### Pipelining: 14.32 ns -> 8.97 ns
+### Pipelining: 14.32 ns -> 8.39 ns
 
 Breaking past the 14.32 ns combinational limit required splitting the datapath with pipeline registers:
 
-- **FDIV**: 3-stage pipeline -> longest stage 8.97 ns (111.5 MHz)
-- **FMUL**: 2-stage pipeline -> longest stage 6.94 ns (144.0 MHz)
-- **FADDSUB**: 2-stage pipeline -> longest stage 8.78 ns (113.9 MHz)
+- **FDIV**: 4-stage pipeline -> longest stage 8.39 ns (119.3 MHz)
+- **FMUL**: 1-stage pipeline -> longest stage 7.78 ns (128.6 MHz)
+- **FADDSUB**: 1-stage pipeline -> longest stage 8.39 ns (119.2 MHz)
 
-All modules verified exhaustively (every combination of two half-precision inputs) with Verilator: 0 mismatches vs. the golden model across NaN/Inf/zero/subnormal/normal categories. The combined `fpu_test` top-level was also verified with an IEEE-754-aware golden model over all 4 operations (ADD/SUB/MUL/DIV), every `(a,b)` input pair, and NaN-tolerant comparisons: **0 failures across 4.29B combos per operation** (NaN 263.99M, Inf 253.9K, Zero 253.9K, Subnormal 255.6M, Normal 3.77B).
+All modules verified exhaustively (every combination of two half-precision inputs) with Verilator: 0 mismatches vs. the golden model across NaN/Inf/zero/subnormal/normal categories. The combined `fpu_test` top-level was also verified with an IEEE-754-aware golden model over all 4 operations (ADD/SUB/MUL/DIV), every `(a,b)` input pair, and NaN-tolerant comparisons: **0 failures across 4.29B combos per operation** (NaN 1.06B, Inf 1.0M, Zero 1.0M, Subnormal 1.02B, Normal 15.1B).
+
+### IEEE-754 Compliance Fixes
+
+Two cross-cycle contamination bugs in the pre-existing FADDSUB/FMUL datapaths (not introduced by the FDIV pipelining) were fixed so the exhaustive check above genuinely passes:
+
+- **FADDSUB** (`src/fpu_FADDSUB.sv`): the normalization stage combined the *registered* mantissa of one input set with the *unregistered* exponent and special-case flags of the next set, corrupting results whenever the input exponents or NaN/Inf flags changed between cycles (visible even for all-normal operands). `final_exp` and the six special flags (`nanA/nanB/infinA/infinB/A0/B0`) are now registered in the same `always_ff` as `pre_norm_man`, so every pipeline stage operates on one consistent input set.
+- **FADDSUB inf - inf**: now returns NaN only when the effective signs are equal (e.g. `+Inf - (+Inf)`); opposite-sign infinities (`+Inf - (-Inf)`) correctly return `+/-Inf` per IEEE-754.
+- **FMUL** (`src/fpu_FMUL.sv`): the arithmetic result's sign bit was taken from the *current* input while the product came from the registered stage, so the sign of a result could be stamped from an unrelated input in a changing stream (also broke sign-of-zero on underflow). `ans_corrected_0[15]` now uses the registered `sign_bit_reg`.
+
+Verification of the fixes: alternating-exponent stream probe (previously 7/7 mismatches) now 0; IEEE special-vector suite (1,296 vectors) 0 fails; 268M-check quick pass 0 fails; and the full exhaustive run over all 4 ops and all `(a,b)` pairs — **17.2B checks, 0 failures**.
 
 ## FDIV Power Reduction: 18.5 mW -> 15.2 mW
 
@@ -72,7 +82,7 @@ Restructured the FDIV correction stage from a 7-way if/else chain with 5 adders 
 - Area: 31,764 -> **31,620 um^2** (-144 um^2, -0.5%)
 - Slack: 2.577 ns -> 1.945 ns (still MET at 100 MHz)
 
-The correction stage was the dominant power sink (~18% of FDIV power); the minor timing penalty (0.51 ns path regression) is acceptable for the power saving. Verified: combinatorial equivalence over all 67M `(diff, B)` pairs (0 mismatches) and exhaustive IEEE-754 verification (~17B combos, 0 failures).
+The correction stage was the dominant power sink (~18% of FDIV power); the minor timing penalty (0.51 ns path regression) is acceptable for the power saving. Verified: combinatorial equivalence over all 67M `(diff, B)` pairs (0 mismatches) and exhaustive IEEE-754 verification (~17B combos, 0 failures). Final numbers after the later 4th FDIV pipeline stage and the IEEE-compliance fixes are in the PPA table above (combined 9.85 mW).
 
 ### Attempts that did NOT improve timing (combinational)
 
@@ -86,7 +96,7 @@ The correction stage was the dominant power sink (~18% of FDIV power); the minor
 
 ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectural hints (carry-select, parallel comparators). The 14.32 ns fixed point is a fundamental limit of the algorithm's logic depth in Sky130.
 
-### Beyond 8.97 ns
+### Beyond 8.39 ns
 
 - Use a different division algorithm (Goldschmidt, SRT)
 - Add more pipeline stages or a faster reciprocal ROM

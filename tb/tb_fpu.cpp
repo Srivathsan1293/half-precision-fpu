@@ -2,6 +2,8 @@
 #include <fstream>
 #include <iomanip>
 #include <cstdint>
+#include <cstring>
+#include <cstdlib>
 #include <verilated.h>
 #include "Vfpu_test.h"
 
@@ -24,6 +26,12 @@ bool is_zero16(uint16_t x) {
 
 uint16_t compute_golden_add(uint16_t a, uint16_t b) {
     if (is_nan16(a) || is_nan16(b)) return ieee_quiet_nan();
+    if (is_inf16(a) && is_inf16(b)) {
+        // IEEE 754: +inf + -inf = NaN; same-sign inf sums to that inf.
+        // (Raw _Float16 returns -Inf for inf-inf on some platforms.)
+        if (((a ^ b) & 0x8000) != 0) return ieee_quiet_nan();
+        return a;
+    }
     _Float16 float_A, float_B, float_ans;
     std::memcpy(&float_A, &a, sizeof(uint16_t));
     std::memcpy(&float_B, &b, sizeof(uint16_t));
@@ -86,6 +94,25 @@ enum Category {
     CAT_NORMAL = 4
 };
 
+const char* cat_names[] = {
+    "Involves NaN              ",
+    "Involves Infinity         ",
+    "Involves True Zero        ",
+    "Involves Subnormal(s)     ",
+    "Normal Arithmetic (Normal)"
+};
+
+const char* op_names[] = { "ADD", "SUB", "MUL", "DIV" };
+
+uint16_t compute_golden(int op, uint16_t a, uint16_t b) {
+    switch (op) {
+        case 0: return compute_golden_add(a, b);
+        case 1: return compute_golden_sub(a, b);
+        case 2: return compute_golden_mul(a, b);
+        default: return compute_golden_div(a, b);
+    }
+}
+
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     Vfpu_test* dut = new Vfpu_test;
@@ -97,12 +124,13 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    uint64_t total_combinations = (uint64_t)0xFFFF + 1;
-    uint64_t combinations_per_op = total_combinations * (uint64_t)0xFFFF + 1;
-    
-    std::cout << "--- Starting Exact RTL FPU Combined Hardware Emulation Test ---" << std::endl;
-    std::cout << "Testing all operations: ADD, SUB, MUL, DIV" << std::endl;
-    std::cout << "Combinations per operation: " << combinations_per_op << std::endl;
+    // Optional bounded "quick mode": ./Vfpu_test <bound>
+    // Iterates a,b in [0, bound) for fast validation. Default: full 0..0xFFFF.
+    uint32_t bound = 0x10000;
+    if (argc > 1) {
+        long b = std::strtol(argv[1], nullptr, 10);
+        if (b >= 1 && b <= 0x10000) bound = static_cast<uint32_t>(b);
+    }
 
     uint64_t total_tests = 0;
     uint64_t total_failed = 0;
@@ -111,111 +139,150 @@ int main(int argc, char** argv) {
     uint64_t cat_totals[5] = {0, 0, 0, 0, 0};
     uint64_t cat_fails[5]  = {0, 0, 0, 0, 0};
 
-    uint64_t update_interval = combinations_per_op / 100;
-    int bar_width = 50;
+    uint64_t per_op_count = (uint64_t)bound * (uint64_t)bound;
 
-    for (uint32_t a_idx = 0; a_idx <= 0xFFFF; a_idx++) {
-        for (uint32_t b_idx = 0; b_idx <= 0xFFFF; b_idx++) {
-            uint16_t a = static_cast<uint16_t>(a_idx);
-            uint16_t b = static_cast<uint16_t>(b_idx);
+    std::cout << "--- Starting Exact RTL FPU Combined Hardware Emulation Test ---" << std::endl;
+    std::cout << "Testing all operations: ADD, SUB, MUL, DIV" << std::endl;
+    std::cout << "Bound = " << std::hex << (bound - 1) << " (a,b each in [0," << std::hex << (bound - 1) << "])" << std::endl;
+    std::cout << "Combinations per operation: " << std::dec << per_op_count << std::endl;
+    std::cout << "Pipeline latency assumed: 4 clock cycles\n" << std::endl;
 
-            // Classify inputs
-            uint16_t expA = (a >> 10) & 0x1F;
-            uint16_t manA = a & 0x03FF;
-            uint16_t expB = (b >> 10) & 0x1F;
-            uint16_t manB = b & 0x03FF;
+    // Each operation runs as its own streaming pass with op held constant.
+    // The output mux selects on the *current* op, so op must not change while
+    // a result is in flight. 4-deep history buffers track the input that is
+    // exiting the pipeline (checked at clk=0 before the shifting posedge).
+    for (int op = 0; op < 4; op++) {
+        uint16_t hist_A[4] = {0, 0, 0, 0};
+        uint16_t hist_B[4] = {0, 0, 0, 0};
+        uint64_t op_tested = 0;
 
-            bool a_nan  = (expA == 31 && manA != 0);
-            bool b_nan  = (expB == 31 && manB != 0);
-            bool a_zero = (expA == 0 && manA == 0);
-            bool b_zero = (expB == 0 && manB == 0);
-            bool a_inf  = (expA == 31 && manA == 0);
-            bool b_inf  = (expB == 31 && manB == 0);
+        dut->op = static_cast<uint8_t>(op);
 
-            Category current_cat;
-            if (a_nan || b_nan) {
-                current_cat = CAT_NAN;
-            } else if (a_inf || b_inf) {
-                current_cat = CAT_INF;
-            } else if (a_zero || b_zero) {
-                current_cat = CAT_ZERO;
-            } else if ((expA == 0 && manA != 0) || (expB == 0 && manB != 0)) {
-                current_cat = CAT_SUBNORM;
-            } else {
-                current_cat = CAT_NORMAL;
-            }
+        for (uint32_t a_idx = 0; a_idx < bound; a_idx++) {
+            for (uint32_t b_idx = 0; b_idx < bound; b_idx++) {
+                uint16_t a = static_cast<uint16_t>(a_idx);
+                uint16_t b = static_cast<uint16_t>(b_idx);
 
-            cat_totals[current_cat]++;
+                dut->a = a;
+                dut->b = b;
 
-            // Test all 4 operations
-            for (int op_idx = 0; op_idx < 4; op_idx++) {
-                total_tests++;
-                
-                uint16_t expected_ans;
-                if (op_idx == 0) {    // ADD
-                    dut->a = a; dut->b = b; dut->op = static_cast<uint8_t>(op_idx);
-                    expected_ans = compute_golden_add(a, b);
-                } else if (op_idx == 1) {  // SUB
-                    dut->a = a; dut->b = b; dut->op = static_cast<uint8_t>(op_idx);
-                    expected_ans = compute_golden_sub(a, b);
-                } else if (op_idx == 2) { // MUL
-                    dut->a = a; dut->b = b; dut->op = static_cast<uint8_t>(op_idx);
-                    expected_ans = compute_golden_mul(a, b);
-                } else {    // DIV
-                    dut->a = a; dut->b = b; dut->op = static_cast<uint8_t>(op_idx);
-                    expected_ans = compute_golden_div(a, b);
+                // Evaluate combinational output before the posedge
+                dut->clk = 0;
+                dut->eval();
+
+                // CHECK: the result now on the bus corresponds to the input
+                // that entered the pipeline 4 cycles ago (hist[3]).
+                if (op_tested >= 4) {
+                    uint16_t check_a = hist_A[3];
+                    uint16_t check_b = hist_B[3];
+
+                    uint16_t expA = (check_a >> 10) & 0x1F;
+                    uint16_t manA = check_a & 0x03FF;
+                    uint16_t expB = (check_b >> 10) & 0x1F;
+                    uint16_t manB = check_b & 0x03FF;
+
+                    bool a_nan  = (expA == 31 && manA != 0);
+                    bool b_nan  = (expB == 31 && manB != 0);
+                    bool a_zero = (expA == 0 && manA == 0);
+                    bool b_zero = (expB == 0 && manB == 0);
+                    bool a_inf  = (expA == 31 && manA == 0);
+                    bool b_inf  = (expB == 31 && manB == 0);
+
+                    Category current_cat;
+                    if (a_nan || b_nan)           current_cat = CAT_NAN;
+                    else if (a_inf || b_inf)      current_cat = CAT_INF;
+                    else if (a_zero || b_zero)    current_cat = CAT_ZERO;
+                    else if ((expA == 0 && manA != 0) || (expB == 0 && manB != 0))
+                                                  current_cat = CAT_SUBNORM;
+                    else                          current_cat = CAT_NORMAL;
+
+                    cat_totals[current_cat]++;
+
+                    uint16_t expected_ans = compute_golden(op, check_a, check_b);
+                    uint16_t hw_ans = dut->ans;
+
+                    // NaN sign/payload is unspecified by IEEE 754 - accept any NaN.
+                    bool both_nan = is_nan16(expected_ans) && is_nan16(hw_ans);
+                    if (!both_nan && hw_ans != expected_ans) {
+                        total_failed++;
+                        cat_fails[current_cat]++;
+
+                        if (total_failed <= 50) {
+                            fail_outfile << "FAIL OP=" << op_names[op]
+                                         << " a=0x" << std::hex << check_a
+                                         << " | b=0x" << check_b
+                                         << " | Expected=0x" << expected_ans
+                                         << " | Got=0x" << hw_ans << std::dec << "\n";
+                        }
+                    }
                 }
 
-                dut->clk = 0; dut->eval(); dut->clk = 1; dut->eval();
-                dut->clk = 0; dut->eval(); dut->clk = 1; dut->eval();
+                // Advance pipeline
+                dut->clk = 1;
+                dut->eval();
 
-                uint16_t hw_ans = dut->ans;
+                // Shift history
+                hist_A[3] = hist_A[2];
+                hist_A[2] = hist_A[1];
+                hist_A[1] = hist_A[0];
+                hist_A[0] = a;
 
-                // NaN sign/payload is unspecified by IEEE 754 - accept any NaN.
-                bool both_nan = is_nan16(expected_ans) && is_nan16(hw_ans);
-                if (!both_nan && hw_ans != expected_ans) {
-                    total_failed++;
-                    cat_fails[current_cat]++;
+                hist_B[3] = hist_B[2];
+                hist_B[2] = hist_B[1];
+                hist_B[1] = hist_B[0];
+                hist_B[0] = b;
 
-                    fail_outfile << "FAIL [" << current_cat << "] OP=" << op_idx 
-                                 << " a=0x" << std::hex << a
-                                 << " | b=0x" << b
+                op_tested++;
+                total_tests++;
+            }
+        }
+
+        // Flush the final 4 combinations left in the hardware pipeline
+        for (int k = 0; k < 4; k++) {
+            dut->clk = 0;
+            dut->eval();
+
+            uint16_t check_a = hist_A[3];
+            uint16_t check_b = hist_B[3];
+
+            uint16_t expected_ans = compute_golden(op, check_a, check_b);
+            uint16_t hw_ans = dut->ans;
+
+            bool both_nan = is_nan16(expected_ans) && is_nan16(hw_ans);
+            if (!both_nan && hw_ans != expected_ans) {
+                total_failed++;
+                if (total_failed <= 50) {
+                    fail_outfile << "PIPELINE_DRAIN FAIL OP=" << op_names[op]
+                                 << " a=0x" << std::hex << check_a
+                                 << " | b=0x" << check_b
                                  << " | Expected=0x" << expected_ans
                                  << " | Got=0x" << hw_ans << std::dec << "\n";
                 }
-
-                // Progress bar (sampled every 10k tests)
-                if ((total_tests % 10000) == 0 || total_tests == combinations_per_op * 4) {
-                    float progress = static_cast<float>(total_tests) / combinations_per_op;
-                    int pos = std::min(static_cast<int>(bar_width * progress), bar_width - 1);
-                    for (int k = 0; k < bar_width; ++k) {
-                        if (k <= pos) std::cout << "="; else std::cout << " ";
-                    }
-                    std::cout << "\r" << static_cast<int>(progress * 100.0) << "% " << total_tests 
-                                 << "/" << combinations_per_op << std::flush;
-                }
             }
+
+            dut->clk = 1;
+            dut->eval();
+
+            hist_A[3] = hist_A[2];
+            hist_A[2] = hist_A[1];
+            hist_A[1] = hist_A[0];
+            hist_B[3] = hist_B[2];
+            hist_B[2] = hist_B[1];
+            hist_B[1] = hist_B[0];
         }
+
+        std::cout << "Op " << op_names[op] << ": done (" << per_op_count << " inputs checked)" << std::endl;
     }
 
     // Print summary
     std::cout << "\n\n===========================================" << std::endl;
     std::cout << "           FINAL FPU COMBINED HARDWARE SUMMARY" << std::endl;
     std::cout << "===========================================\n" << std::endl;
-    
-    uint64_t ops_tested = total_combinations * 4;
-    std::cout << "Total Combinations Tested : " << ops_tested << std::endl;
+
+    std::cout << "Total Combinations Tested : " << total_tests << std::endl;
     std::cout << "Total Global Failures     : " << total_failed << "\n" << std::endl;
 
     std::cout << "--- Breakdown by Classification ---" << std::endl;
-    const char* cat_names[] = {
-        "Involves NaN              ",
-        "Involves Infinity         ",
-        "Involves True Zero        ",
-        "Involves Subnormal(s)     ",
-        "Normal Arithmetic (Normal)"
-    };
-
     for (int i = 0; i < 5; i++) {
         double fail_pct = 0.0;
         if (cat_totals[i] > 0) {
@@ -223,7 +290,7 @@ int main(int argc, char** argv) {
         }
         std::cout << cat_names[i] << " : "
                   << cat_fails[i] << " failed / "
-                  << cat_totals[i] << " total (" 
+                  << cat_totals[i] << " total ("
                   << std::fixed << std::setprecision(2) << fail_pct << "%)" << std::endl;
     }
 
