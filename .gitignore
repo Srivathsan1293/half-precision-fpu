@@ -1,7 +1,12 @@
 *.vcd
 *.history
 obj_dir/
+obj_dir_*/
 synthesis_metrics/
 sky130_fd_sc_hd__tt_025C_1v80.lib
 testing_results/fpu_exhaustive_log.txt
 testing_results/fpu_failed_log.txt
+tb/firmware/*.o
+tb/firmware/*.elf
+tb/firmware/*.bin
+tb/firmware/*.hex

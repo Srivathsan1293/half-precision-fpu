@@ -9,7 +9,7 @@ A fast, IEEE 754 compliant half-precision (binary16) floating-point unit with mu
 3. **Pipelining** — Introduce pipeline stages to increase throughput and Fmax
 4. **Low Power** — Reduce dynamic power of the dominant power sinks (FDIV correction logic)
 5. **AXI4 Interface** — Wrap the FPU with an AXI4-Lite/AXI4-Stream interface for easy integration
-6. **CPU Integration** — Verify with a RISC-V model CPU (e.g., PicoRV32, VexRiscv) on FPGA
+6. **CPU Integration** — Verify with a RISC-V model CPU (e.g., PicoRV32, VexRiscv) on FPGA *(in progress: PicoRV32 SoC + PCPI bus + firmware + harness in place; FPU PCPI wrapper pending)*
 
 ## Architecture
 
@@ -102,6 +102,91 @@ ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectu
 - Add more pipeline stages or a faster reciprocal ROM
 - Move to a faster technology node
 
+## CPU Integration (PicoRV32 + PCPI)
+
+A PicoRV32 SoC is set up so the half-precision FPU can be attached as a Pico
+Co-Processor (PCPI) and driven by RISC-V `custom0` instructions. The core,
+memory, toolchain, and Verilator harness are in place; the FPU PCPI wrapper
+(`src/fpu_pcpi.sv`) is the plug-in point.
+
+| File | Description |
+|------|-------------|
+| `third_party/picorv32.v` | PicoRV32 core (YosysHQ, vendored, ISC license) |
+| `tb/soc_fpu_top.sv` | SoC: PicoRV32 + 16 KB RAM + PCPI bus. Built with `HAS_FPU_PCPI` it instantiates the wrapper; without it the PCPI handshake inputs are tied off |
+| `tb/tb_fpu_pcpi.cpp` | Verilator harness: resets the core, runs to a done marker, checks results vs a golden `_Float16` model |
+| `tb/firmware/` | Bare-metal firmware: `test_main.c` (integer smoke test), `fpu_test_main.c` (FPU test), `fpu_macros.h`, `link.ld`, `Makefile`, `bin2hex.py` |
+| `run_cpu_test.sh` | One-shot build + run |
+
+### Custom-instruction encoding
+
+The FPU is reached through RISC-V `custom0` (opcode `0001011`), R-type with
+`funct3 = 000`. `funct7` selects the operation; operands are half-precision
+bit patterns in the low 16 bits of `rs1`/`rs2`, and the 16-bit result is
+zero-extended into `rd`.
+
+| funct7 | mnemonic |
+|--------|----------|
+| `0000110` | FADD |
+| `0000111` | FSUB |
+| `0001000` | FMUL |
+| `0001001` | FDIV |
+
+(The `0000000`–`0000101` funct7 values are reserved by PicoRV32's own IRQ
+custom instructions.)
+
+### Toolchain
+
+The firmware is built with `clang --target=riscv32-unknown-elf -march=rv32i
+-mabi=ilp32` + `ld.lld` + `llvm-objcopy` (no GNU toolchain required). If
+`riscv64-unknown-elf-gcc` is installed it is auto-detected and used instead.
+
+### Building and running
+
+```
+./run_cpu_test.sh            # baseline integer smoke test (no coprocessor)
+./run_cpu_test.sh fpu        # FPU PCPI test (requires src/fpu_pcpi.sv)
+```
+
+Baseline result: firmware runs on the core, writes its results and done
+marker through the native memory interface, and the harness verifies them —
+**STATUS: PASS** (4/4 integer checks, ~71 cycles to completion, no trap).
+
+### Connecting the FPU PCPI wrapper
+
+Write `src/fpu_pcpi.sv` with exactly this interface:
+
+```systemverilog
+module fpu_pcpi (
+    input  logic clk, resetn,
+    input  logic        pcpi_valid,
+    input  logic [31:0] pcpi_insn,
+    input  logic [31:0] pcpi_rs1,
+    input  logic [31:0] pcpi_rs2,
+    output logic        pcpi_wr,
+    output logic [31:0] pcpi_rd,
+    output logic        pcpi_wait,
+    output logic        pcpi_ready
+);
+```
+
+Handshake notes (see `picorv32_pcpi_mul` in `third_party/picorv32.v` for the
+reference pattern):
+
+- `pcpi_valid` is held high by the CPU until the coprocessor asserts
+  `pcpi_ready`; `pcpi_insn/rs1/rs2` are stable during that time, so the
+  4-cycle FPU pipeline can be fed continuously and the result sampled after
+  the pipeline fills.
+- Assert `pcpi_wait` as soon as the instruction is decoded to suppress the
+  CPU's 16-cycle illegal-instruction timeout.
+- Assert `pcpi_ready` together with `pcpi_wr` and `pcpi_rd = {16'b0, fpu_ans}`
+  for one cycle when the result is valid; the CPU writes `rd` and moves on.
+- Register `pcpi_wait` and detect its rising edge to latch each fresh
+  instruction without re-triggering.
+
+`fpu_macros.h` provides `fadd_half/fsub_half/fmul_half/fdiv_half` and
+`fpu_test_main.c` is a ready 15-vector test (NaN/Inf/zero/subnormal/normal)
+whose expected results are checked by the harness.
+
 ## Tools
 
 - **RTL**: SystemVerilog
@@ -109,6 +194,7 @@ ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectu
 - **Timing/Power**: OpenSTA 3.1.0
 - **Simulation**: Verilator / Icarus Verilog
 - **PDK**: SkyWater 130 nm (`sky130_fd_sc_hd`)
+- **CPU firmware**: clang/LLD or `riscv64-unknown-elf-gcc` (RV32I, bare-metal)
 
 ## Project Structure
 
@@ -120,7 +206,12 @@ ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectu
 │   ├── fpu_FDIV.sv
 │   ├── fpu_modules.sv
 │   └── fpu_test.sv         # Combined top: FMUL + FADDSUB + FDIV
+├── third_party/
+│   └── picorv32.v          # PicoRV32 RISC-V core (vendored)
 ├── tb/                     # Testbenches (tb_fpu.cpp = exhaustive)
+│   ├── tb_fpu_pcpi.cpp     # PicoRV32 + FPU-PCPI SoC harness
+│   ├── soc_fpu_top.sv      # PicoRV32 + RAM + PCPI SoC top
+│   └── firmware/           # Bare-metal test firmware (C, RV32I)
 ├── synth_scripts/          # Yosys/OpenSTA PPA scripts
 │   ├── ppa_DIV.ys
 │   ├── sta_DIV.tcl
@@ -131,5 +222,6 @@ ABC's AIG-based flatten-and-remap approach does not preserve RTL microarchitectu
 │   └── ...
 ├── synth_outputs/          # Synthesized netlists and reports
 ├── run_ppa.sh              # One-shot combined PPA flow
+├── run_cpu_test.sh         # One-shot PicoRV32 + FPU-PCPI sim flow
 └── testing_results/
 ```
