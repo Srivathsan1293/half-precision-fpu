@@ -74,7 +74,9 @@ module soc_fpu_top (
         .ENABLE_FAST_MUL   (1'b0),
         .ENABLE_DIV        (1'b0),
         .CATCH_ILLINSN     (1'b1),
+        .ENABLE_IRQ        (1'b1),
         .PROGADDR_RESET    (32'h 0000_0000),
+        .PROGADDR_IRQ      (32'h 0000_0800),
         .STACKADDR         (32'h 0000_2000)
     ) u_cpu (
         .clk        (clk),

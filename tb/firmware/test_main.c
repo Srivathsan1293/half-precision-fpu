@@ -8,9 +8,9 @@
 
 #include <stdint.h>
 
-#define RESULTS_BASE     0x100u
-#define TEST_MAGIC_ADDR  0x1FCu
-#define DONE_ADDR        0x200u
+#define RESULTS_BASE     0x1000u
+#define TEST_MAGIC_ADDR  0x1C00u
+#define DONE_ADDR        0x1C04u
 #define DONE_MAGIC       0xDEADBEEFu
 #define TEST_MAGIC_BASELINE 0xBA51E000u
 

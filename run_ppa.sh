@@ -26,4 +26,5 @@ echo ""
 # Step 3: Run OpenSTA for timing and power analysis
 echo "[Step 2] Analyzing with OpenSTA..."
 cd "$SCRIPT_DIR"
-opensta synth_scripts/sta_fpu_test.tcl
+STA_BIN="${STA_BIN:-$(command -v sta || command -v opensta)}"
+"$STA_BIN" synth_scripts/sta_fpu_test.tcl

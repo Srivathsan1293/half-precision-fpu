@@ -47,9 +47,25 @@ module fpu_test (
         .out(FDIV_out)
     );
 
+    // === PIPELINE ALIGNMENT ===
+    // FDIV is 4-stage pipeline, FMUL/FADDSUB datapaths are 1-stage each.
+    // Store FMUL and FADDSUB in three extra registers to align all outputs to 4 cycles.
+    
+    reg [15:0] FADDSUB_r, FADDSUB_r2, FADDSUB_r3;
+    reg [15:0] FMUL_r, FMUL_r2, FMUL_r3;
+
+    always_ff @(posedge clk) begin
+        FADDSUB_r <= FADDSUB_out;
+        FMUL_r <= FMUL_out;
+        FADDSUB_r2 <= FADDSUB_r;
+        FMUL_r2 <= FMUL_r;
+        FADDSUB_r3 <= FADDSUB_r2;
+        FMUL_r3 <= FMUL_r2;
+    end
+
     // === OUTPUT MUX ===
     // op[1] selects between MUL/DIV (high) and ADD/SUB (low)
     // op[0] within each pair: 0=ADD/SUB, 1=MUL/DIV
-    assign ans = op[1] ? (op[0] ? FDIV_out : FMUL_out) : FADDSUB_out;
+    assign ans = op[1] ? (op[0] ? FDIV_out : FMUL_r3) : FADDSUB_r3;
 
 endmodule

@@ -1,14 +1,11 @@
-# Multiplier (FMUL) PPA
+# Multiplier (FMUL) PPA — same mfs2 ABC mapping flow as ppa_combined_top.ys
+# and ppa_fpu_pcpi.ys so every netlist is reproducible and comparable.
 read_verilog -sv src/fpu_modules.sv
 read_verilog -sv src/fpu_FMUL.sv
 synth -top FMUL -flatten
 read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib
 dfflibmap -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
-abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib -script "+strash;ifraig;scorr;dc2;dretime;strash;&get -n;&dch -f;&nf -v;&put;mfs2;strash;&get -n;&dch -f;&nf -v;&put;map -D 9000"
 clean
 stat -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
-write_verilog synth_outputs/FMUL_synth.v
-# STA below may fail due to yosys liberty parameter issue
-setundef -zero
-splitnets
-sta
+write_verilog -noattr synth_outputs/FMUL_synth.v

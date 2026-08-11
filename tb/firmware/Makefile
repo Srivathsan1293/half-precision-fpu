@@ -32,18 +32,45 @@ endif
 MARCH  := rv32i
 MABI   := ilp32
 
-CFLAGS  := -march=$(MARCH) -mabi=$(MABI) -nostdlib -ffreestanding -fno-builtin \
-           -O2 -Wall -Wextra -I.
-LDFLAGS := -T link.ld -nostdlib
-
-ifneq ($(FPU_TEST),)
+ifeq ($(FPU_TEST),stress)
+  SRCS   := fpu_stress_main.c
+else ifeq ($(FPU_TEST),spike)
+  SRCS   := fpu_spike_main.S
+else ifeq ($(FPU_TEST),emu)
+  # emulator self-test: software FPU emulator (IRQ handler + C core) driven by
+  # a hand-written Zhinx assembly test that exercises only emulated ops.
+  SRCS   := fpu_emutest_main.S fpu_irq_stub.S fpu_emulator.c
+  MARCH  := rv32im_zhinx
+else ifeq ($(FPU_TEST),zhinx)
+  # standard-Zhinx integration: clang -march=rv32im_zhinx real-encoding test;
+  # ops 0..3 run in hardware, ops 4..16 trap to the software emulator.
+  SRCS   := fpu_zhinx_main.c fpu_irq_stub.S fpu_emulator.c
+  MARCH  := rv32im_zhinx
+else ifeq ($(FPU_TEST),run)
+  # Phase 7 generic run-and-dump mode: build the user's own program (assembly
+  # or C) alongside the IRQ stub + emulator so emulated FP ops also work. The
+  # caller supplies RUN_SRCS (e.g. "myprog.S fpu_irq_stub.S fpu_emulator.c").
+  SRCS   := $(RUN_SRCS)
+  MARCH  := rv32im_zhinx
+else ifneq ($(FPU_TEST),)
   SRCS   := fpu_test_main.c
-  CFLAGS += -DFPU_TEST
 else
   SRCS   := test_main.c
 endif
 
-OBJS   := $(SRCS:.c=.o)
+CFLAGS  := -march=$(MARCH) -mabi=$(MABI) -nostdlib -ffreestanding -fno-builtin \
+           -O2 -Wall -Wextra -I.
+LDFLAGS := -T link.ld -nostdlib
+
+# The emulator's code lives in the .irq_handler section (0x800..0x1000, beside
+# the IRQ stub) so it never consumes the 0x0..0x800 main-code window that the
+# linker script caps at 0x800. Built with -Oz so stub + emulator stay under the
+# 2048-byte IRQ window, then .text is renamed to .irq_handler so the linker
+# places it there.
+EMU_CFLAGS := -Oz
+
+OBJS   := $(patsubst %.S,%.o,$(patsubst %.c,%.o,$(SRCS)))
+EMU_OBJ := fpu_emulator.o
 ELF    := firmware.elf
 BIN    := firmware.bin
 HEX    := firmware.hex
@@ -61,7 +88,19 @@ $(BIN): $(ELF)
 $(ELF): $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@
 
-%.o: %.c
+# Shared headers: force a rebuild of any object that includes them so the
+# firmware vector table can never drift from the harness copy.
+FPU_HEADERS := fpu_vectors.h fpu_macros.h
+
+%.o: %.c $(FPU_HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Emulator object: compile with -Oz for size and put its code in .irq_handler.
+$(EMU_OBJ): fpu_emulator.c
+	$(CC) $(CFLAGS) $(EMU_CFLAGS) -c $< -o $@
+	$(OBJCOPY) --rename-section .text=.irq_handler $@ $@
+
+%.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
