@@ -7,6 +7,14 @@
 #                                enables HAS_FPU_PCPI and the FPU src files)
 #   ./run_cpu_test.sh stress     exhaustive FPU PCPI stress test (numeric sweep
 #                                + CPU edge cases; same wrapper requirements)
+#   ./run_cpu_test.sh bench      Week 2 SW-vs-HW cycle-count benchmark (soft-float
+#                                vs PCPI FIR; same wrapper requirements)
+#   ./run_cpu_test.sh benchmm    Week 2 SW-vs-HW cycle-count benchmark (4x4 fp16
+#                                matrix multiply; same wrapper requirements)
+#   ./run_cpu_test.sh benchdig   Week 2 SW-vs-HW cycle-count benchmark (5-tap
+#                                fp16 digital FIR filter; same wrapper requirements)
+#   ./run_cpu_test.sh benchdiv   Week 2 SW-vs-HW cycle-count benchmark (fp16
+#                                vector divide; same wrapper requirements)
 #   ./run_cpu_test.sh spike      validate the ebreak-IRQ resume-PC premise
 #                                (no wrapper: an unclaimed FP instruction must
 #                                trap to the 0x800 handler with P+4 in q-reg 0)
@@ -39,6 +47,28 @@ elif [ "$MODE" = "stress" ]; then
     EXTRA_DEF="-DHAS_FPU_PCPI"
     WRAPPER_SRC="src/fpu_pcpi.sv"
     MODEL="FPU_TEST=stress"
+elif [ "$MODE" = "bench" ]; then
+    # Week 2 SW-vs-HW cycle-count benchmark (soft-float vs PCPI FIR). The core
+    # has the M extension so the SW phase is a generic real-world soft-float
+    # baseline (see soc_fpu_top.sv).
+    EXTRA_DEF="-DHAS_FPU_PCPI"
+    WRAPPER_SRC="src/fpu_pcpi.sv"
+    MODEL="FPU_TEST=bench"
+elif [ "$MODE" = "benchmm" ]; then
+    # Week 2 SW-vs-HW cycle-count benchmark (4x4 fp16 matrix multiply).
+    EXTRA_DEF="-DHAS_FPU_PCPI"
+    WRAPPER_SRC="src/fpu_pcpi.sv"
+    MODEL="FPU_TEST=benchmm"
+elif [ "$MODE" = "benchdig" ]; then
+    # Week 2 SW-vs-HW cycle-count benchmark (5-tap fp16 digital FIR filter).
+    EXTRA_DEF="-DHAS_FPU_PCPI"
+    WRAPPER_SRC="src/fpu_pcpi.sv"
+    MODEL="FPU_TEST=benchdig"
+elif [ "$MODE" = "benchdiv" ]; then
+    # Week 2 SW-vs-HW cycle-count benchmark (fp16 vector divide).
+    EXTRA_DEF="-DHAS_FPU_PCPI"
+    WRAPPER_SRC="src/fpu_pcpi.sv"
+    MODEL="FPU_TEST=benchdiv"
 elif [ "$MODE" = "spike" ]; then
     EXTRA_DEF=""
     WRAPPER_SRC=""

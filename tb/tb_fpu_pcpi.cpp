@@ -26,6 +26,7 @@
 #include "Vsoc_fpu_top___024root.h"
 
 #include "firmware/fpu_vectors.h"
+#include "firmware/fpu_bench.h"
 
 static const uint32_t RESULT_BASE      = 0x1000;
 static const uint32_t TEST_MAGIC_ADDR  = 0x1C00;
@@ -34,10 +35,10 @@ static const uint32_t DONE_MAGIC       = 0xDEADBEEF;
 static const uint32_t MAGIC_BASELINE   = 0xBA51E000;
 static const uint32_t MAGIC_FPU        = 0x5F50555A;
 static const uint32_t MAGIC_STRESS     = 0x5F50555C;
+static const uint32_t MAGIC_EDGE       = 0x5F505545;
 static const uint32_t MAGIC_SPIKE      = 0x5F50535F;
 static const uint32_t MAGIC_EMU        = 0x5F505345;
 static const uint32_t MAGIC_ZHINX      = 0x5F50555D;
-static const uint32_t MAGIC_EDGE       = 0x5F505545;
 static const uint32_t MAGIC_UNSUP      = 0x5F505546;
 // Unsupported-op probe addresses (see tb/firmware/fpu_unsup_main.S):
 // 0x1C08 = faulting instruction word (written by emu_halt)
@@ -47,6 +48,10 @@ static const uint32_t UNS_MARK_ADDR   = 0x1C08;
 static const uint32_t UNS_PC_ADDR     = 0x1C0C;
 static const uint32_t PROBE_PC_ADDR   = 0x1C10;
 static const uint32_t MAGIC_ASM_ALL    = 0x5F505541;
+static const uint32_t MAGIC_BENCH      = 0x5F50555E;
+static const uint32_t MAGIC_BENCH_MM   = 0x5F50555F;
+static const uint32_t MAGIC_BENCH_DIG  = 0x5F505560;
+static const uint32_t MAGIC_BENCH_DIV  = 0x5F505561;
 
 static const uint64_t MAX_CYCLES = 200000;
 
@@ -242,6 +247,48 @@ static int check_stress(Vsoc_fpu_top* dut) {
         vi++;
     }
 
+    return failures;
+}
+
+// Week 2 SW-vs-HW cycle-count benchmark. The firmware ran an identical FIR
+// filter twice (software soft-float reference and hardware PCPI) and stored:
+//   [0, N)   SW output window (N = BENCH_N_SAMPLES)
+//   [N, 2N)  HW output window
+//   [2N]     SW final accumulator
+//   [2N+1]   HW final accumulator
+// The outputs must be bit-identical; the harness additionally reports the
+// cycle counts captured at the phase markers (see fpu_bench.h). `label`
+// names the workload in the per-sample printout.
+static int check_bench(Vsoc_fpu_top* dut, const char* label,
+                       uint64_t sw_start, uint64_t sw_end,
+                       uint64_t hw_start, uint64_t total) {
+    int failures = 0;
+    const uint32_t N = BENCH_N_SAMPLES;
+
+    for (uint32_t i = 0; i < N; i++) {
+        uint16_t sw = rd_ram(dut, RESULT_BASE + 4 * i) & 0xFFFF;
+        uint16_t hw = rd_ram(dut, RESULT_BASE + 4 * (N + i)) & 0xFFFF;
+        bool ok = (sw == hw);
+        std::cout << "  " << label << "[" << std::dec << i << "] sw=0x" << std::hex
+                  << std::setw(4) << std::setfill('0') << sw
+                  << " hw=0x" << std::setw(4) << hw
+                  << (ok ? " match" : " MISMATCH") << std::dec << "\n";
+        if (!ok) failures++;
+    }
+    uint16_t sw_acc = rd_ram(dut, RESULT_BASE + 4 * (2 * N)) & 0xFFFF;
+    uint16_t hw_acc = rd_ram(dut, RESULT_BASE + 4 * (2 * N + 1)) & 0xFFFF;
+    bool acc_ok = (sw_acc == hw_acc);
+    std::cout << "  acc(final) sw=0x" << std::hex << sw_acc << " hw=0x"
+              << hw_acc << (acc_ok ? " match" : " MISMATCH") << std::dec << "\n";
+    if (!acc_ok) failures++;
+
+    // Cycles: [sw_start, sw_end) for SW, [hw_start, total) for HW.
+    uint64_t sw_cyc = sw_end - sw_start;
+    uint64_t hw_cyc = total - hw_start;
+    std::cout << "  cycles: SW soft-float phase = " << std::dec << sw_cyc
+              << "  HW PCPI phase = " << hw_cyc
+              << "  speedup = " << (hw_cyc ? (double)sw_cyc / (double)hw_cyc : 0.0)
+              << "x\n";
     return failures;
 }
 
@@ -677,6 +724,7 @@ int main(int argc, char** argv) {
     // ---- run until done marker / trap / timeout ----
     bool done = false, trapped = false;
     uint64_t cyc;
+    uint64_t bench_sw_start = 0, bench_sw_end = 0, bench_hw_start = 0;
     for (cyc = 0; cyc < max_cycles; cyc++) {
         dut->clk = 0;
         dut->eval();
@@ -684,6 +732,16 @@ int main(int argc, char** argv) {
         dut->clk = 1;
         dut->eval();
         if (vcd_on) tfp->dump(cyc * 2 + 1);
+
+        // Capture Week 2 benchmark cycle markers (single-shot latches).
+        if (cyc > 16) {
+            if (!bench_sw_start && rd_ram(dut, BENCH_SW_START_ADDR) == BENCH_SW_START_MAGIC)
+                bench_sw_start = cyc;
+            if (!bench_sw_end && rd_ram(dut, BENCH_SW_END_ADDR) == BENCH_SW_END_MAGIC)
+                bench_sw_end = cyc;
+            if (!bench_hw_start && rd_ram(dut, BENCH_HW_START_ADDR) == BENCH_HW_START_MAGIC)
+                bench_hw_start = cyc;
+        }
 
         if (cyc > 16 && rd_ram(dut, DONE_ADDR) == DONE_MAGIC) {
             done = true;
@@ -761,6 +819,18 @@ int main(int argc, char** argv) {
             failures = check_edge(dut);
         } else if (magic == MAGIC_ASM_ALL) {
             failures = check_asm_all(dut);
+        } else if (magic == MAGIC_BENCH) {
+            failures = check_bench(dut, "fir", bench_sw_start, bench_sw_end,
+                                   bench_hw_start, cyc);
+        } else if (magic == MAGIC_BENCH_MM) {
+            failures = check_bench(dut, "mm", bench_sw_start, bench_sw_end,
+                                   bench_hw_start, cyc);
+        } else if (magic == MAGIC_BENCH_DIG) {
+            failures = check_bench(dut, "dig", bench_sw_start, bench_sw_end,
+                                   bench_hw_start, cyc);
+        } else if (magic == MAGIC_BENCH_DIV) {
+            failures = check_bench(dut, "div", bench_sw_start, bench_sw_end,
+                                   bench_hw_start, cyc);
         } else {
             std::cout << "  unknown test magic 0x" << std::hex << magic << std::dec << "\n";
             failures++;

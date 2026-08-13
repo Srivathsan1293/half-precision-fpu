@@ -70,8 +70,11 @@ module soc_fpu_top (
         .ENABLE_COUNTERS   (1'b0),
         .ENABLE_REGS_16_31 (1'b1),
         .ENABLE_PCPI       (1'b1),
-        .ENABLE_MUL        (1'b0),
-        .ENABLE_FAST_MUL   (1'b0),
+        // Integer M extension on: the software soft-float phase of the
+        // SW-vs-HW benchmark compiles as rv32im, so the baseline is a generic
+        // real-world soft-float implementation (one hardware MUL per op).
+        .ENABLE_MUL        (1'b1),
+        .ENABLE_FAST_MUL   (1'b1),
         .ENABLE_DIV        (1'b0),
         .CATCH_ILLINSN     (1'b1),
         .ENABLE_IRQ        (1'b1),

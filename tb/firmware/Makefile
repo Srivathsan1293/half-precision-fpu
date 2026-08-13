@@ -32,8 +32,28 @@ endif
 MARCH  := rv32i
 MABI   := ilp32
 
+# Bench modes compile the software soft-float phase as rv32im (hardware MUL),
+# so the SW-vs-HW comparison uses a generic real-world soft-float baseline.
+ifneq ($(filter bench benchmm benchdig benchdiv,$(FPU_TEST)),)
+  MARCH := rv32im
+endif
+
 ifeq ($(FPU_TEST),stress)
   SRCS   := fpu_stress_main.c
+else ifeq ($(FPU_TEST),bench)
+  # Week 2 SW-vs-HW cycle-count benchmark: identical FIR run through the
+  # software soft-float reference and the hardware FPU PCPI instructions.
+  SRCS   := fpu_bench_main.c
+else ifeq ($(FPU_TEST),benchmm)
+  # Week 2 SW-vs-HW cycle-count benchmark: 4x4 fp16 matrix multiply.
+  SRCS   := fpu_bench_mm_main.c
+else ifeq ($(FPU_TEST),benchdig)
+  # Week 2 SW-vs-HW cycle-count benchmark: 5-tap fp16 digital FIR filter.
+  SRCS   := fpu_bench_dig_main.c
+else ifeq ($(FPU_TEST),benchdiv)
+  # Week 2 SW-vs-HW cycle-count benchmark: fp16 vector divide (software
+  # division is the FPU's strongest, most honest case).
+  SRCS   := fpu_bench_div_main.c
 else ifeq ($(FPU_TEST),spike)
   SRCS   := fpu_spike_main.S
 else ifeq ($(FPU_TEST),emu)
@@ -59,7 +79,7 @@ else
 endif
 
 CFLAGS  := -march=$(MARCH) -mabi=$(MABI) -nostdlib -ffreestanding -fno-builtin \
-           -O2 -Wall -Wextra -I.
+           -O2 -Wall -Wextra -I. -fno-unroll-loops
 LDFLAGS := -T link.ld -nostdlib
 
 # The emulator's code lives in the .irq_handler section (0x800..0x1000, beside
@@ -90,7 +110,7 @@ $(ELF): $(OBJS)
 
 # Shared headers: force a rebuild of any object that includes them so the
 # firmware vector table can never drift from the harness copy.
-FPU_HEADERS := fpu_vectors.h fpu_macros.h
+FPU_HEADERS := fpu_vectors.h fpu_macros.h fpu_bench.h soft_half.h
 
 %.o: %.c $(FPU_HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
