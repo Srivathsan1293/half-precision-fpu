@@ -11,6 +11,8 @@ module fpu_pcpi (
     //   FADDSUB/FMUL: one register stage  -> valid 1 cycle after start (cyc==0)
     //   FDIV:         4-stage pipeline    -> valid 4 cycles after start (cyc==3)
     reg busy;
+    reg done_q;          // op completed; stays set until pcpi_valid falls so a
+                         // held-high pcpi_valid can never re-trigger a new op
     reg [1:0] cyc;
     wire answer_valid = (fpu_op == 2'b11) ? (cyc == 2'd3) : (cyc == 2'd0);
     wire is_fpu_f3 = (pcpi_insn[14:12] == 3'b000);
@@ -48,15 +50,20 @@ module fpu_pcpi (
 
     always_ff @(posedge clk) begin
         if (!resetn) begin
-            busy <= 1'b0;
-            cyc  <= 2'd0;
-        end else if (start_compute && !busy) begin
-            busy <= 1'b1;
-            cyc  <= 2'd0;
+            busy   <= 1'b0;
+            done_q <= 1'b0;
+            cyc    <= 2'd0;
+        end else if (start_compute && !busy && !done_q) begin
+            busy   <= 1'b1;
+            cyc    <= 2'd0;
         end else if (busy) begin
             cyc <= cyc + 2'd1;
-            if (answer_valid)
-                busy <= 1'b0;
+            if (answer_valid) begin
+                busy   <= 1'b0;
+                done_q <= 1'b1;
+            end
+        end else if (!pcpi_valid) begin
+            done_q <= 1'b0;
         end
     end
 

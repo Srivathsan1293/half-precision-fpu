@@ -3,18 +3,18 @@
 // Wrapper-only state-machine timing verification for src/fpu_pcpi.sv.
 //
 // Drives the PCPI bus exactly like PicoRV32 (no CPU, no firmware) and asserts
-// the precise counter->ready timing of the 3-state FSM (idle/compute/done):
+// the precise busy->ready timing of the option-1 handshake (busy flag +
+// combinational pcpi_wait/pcpi_wr/pcpi_ready):
 //
-//   FADD/FSUB/FMUL (1 datapath stage):  counter reaches 1 on loop cycle 1,
-//       ready asserted at that posedge, pcpi_ready follows one register later
+//   FADD/FSUB/FMUL (1 datapath stage):  answer valid 1 cycle after accept,
+//       ready asserted combinationally that cycle
+//       -> pcpi_ready first observed high on loop cycle 0 after accept
+//   FDIV (4-stage pipeline):            answer valid 4 cycles after accept
 //       -> pcpi_ready first observed high on loop cycle 3 after accept
-//   FDIV (4-stage pipeline):            counter reaches 3 on loop cycle 3,
-//       ready asserted at that posedge, pcpi_ready one register later
-//       -> pcpi_ready first observed high on loop cycle 5 after accept
 //   No early fire:                      pcpi_ready must stay low for every
 //          cycle before the expected ready cycle
-//   pcpi_ready + pcpi_wr pulse for exactly one cycle, then the FSM returns to
-//   idle (no re-trigger while pcpi_valid is held high).
+//   pcpi_ready + pcpi_wr pulse for exactly one cycle, then the wrapper returns
+//   to idle (no re-trigger while pcpi_valid is held high)
 //
 // This complements tb/tb_pcpi_handshake.cpp (protocol rules) by pinning the
 // exact cycle counts the state machine must hit.
@@ -85,7 +85,10 @@ static Timing run_timing(Vfpu_pcpi* dut, uint32_t insn, uint32_t rs1,
         wait_hist[cyc] = o.wait;
         if (o.wait && t.wait_first < 0) t.wait_first = cyc;
         if (t.ready_first >= 0 && cyc > window_end) {
-            if (o.wait || o.ready || o.wr) t.retrigger = true;
+            // pcpi_wait legitimately stays high while pcpi_valid is held
+            // (pcpi_wait = busy | start_compute); only a second ready/wr pulse
+            // counts as an illegal re-trigger.
+            if (o.ready || o.wr) t.retrigger = true;
         }
         if (o.ready) {
             if (t.ready_first < 0) {
@@ -98,8 +101,8 @@ static Timing run_timing(Vfpu_pcpi* dut, uint32_t insn, uint32_t rs1,
             window_end = cyc;
         }
     }
-    // wait must stay high continuously from wait_first until the cycle before
-    // ready (wait legitimately drops on the ready cycle itself).
+    // wait must stay high continuously from wait_first until ready (it stays
+    // high while pcpi_valid is held; the CPU drops pcpi_valid after ready).
     if (t.wait_first >= 0 && t.ready_first >= 0) {
         for (int cyc = t.wait_first + 1; cyc < t.ready_first; cyc++) {
             if (!wait_hist[cyc]) t.wait_gap = true;
@@ -126,7 +129,7 @@ int main(int argc, char** argv) {
     const uint32_t rs1_3 = 0x00004200;   // 3.0
 
     std::printf("PCPI FSM exact-timing test (fpu_pcpi wrapper only)\n");
-    std::printf("FADD/FSUB/FMUL: ready on loop cycle 3, FDIV: ready on loop cycle 5\n");
+    std::printf("FADD/FSUB/FMUL: ready on loop cycle 0, FDIV: ready on loop cycle 3\n");
 
     // ---- reset / idle ----
     bool idle_ok = true;
@@ -140,66 +143,63 @@ int main(int argc, char** argv) {
     }
     check("reset + idle: wait/ready/wr deasserted", idle_ok);
 
-    // ---- FADD: expected ready_first = 3 ----
-    std::printf("Test 1: FADD.H (1.0 + 2.0 = 0x4200), expected ready cycle 3\n");
+    // ---- FADD: expected ready_first = 0 ----
+    std::printf("Test 1: FADD.H (1.0 + 2.0 = 0x4200), expected ready cycle 0\n");
     {
-        Timing t = run_timing(dut, 0x0CB5008B, rs1_1, rs1_2, 0x4200, 3);
+        Timing t = run_timing(dut, 0x0CB5008B, rs1_1, rs1_2, 0x4200, 0);
         check("FADD: wait asserted within 2 cycles", t.wait_first >= 0 && t.wait_first <= 2);
         check("FADD: no wait gap before ready", !t.wait_gap);
-        check("FADD: no early fire (ready before cycle 3)", !t.early_fire);
-        check("FADD: ready_first == 3", t.ready_first == 3);
+        check("FADD: ready_first == 0", t.ready_first == 0);
         check("FADD: ready pulses exactly once", t.ready_count == 1);
         check("FADD: pcpi_wr high during ready", t.wr_ok);
         check("FADD: pcpi_rd == 0x4200", t.rd_ok);
         check("FADD: no re-trigger after ready while valid held", !t.retrigger);
     }
 
-    // ---- FSUB: expected ready_first = 3 ----
-    std::printf("Test 2: FSUB.H (2.0 - 1.0 = 0x3C00), expected ready cycle 3\n");
+    // ---- FSUB: expected ready_first = 0 ----
+    std::printf("Test 2: FSUB.H (2.0 - 1.0 = 0x3C00), expected ready cycle 0\n");
     {
-        Timing t = run_timing(dut, 0x0FB5008B, rs1_2, rs1_1, 0x3C00, 3);
-        check("FSUB: no early fire (ready before cycle 3)", !t.early_fire);
-        check("FSUB: ready_first == 3", t.ready_first == 3);
+        Timing t = run_timing(dut, 0x0FB5008B, rs1_2, rs1_1, 0x3C00, 0);
+        check("FSUB: ready_first == 0", t.ready_first == 0);
         check("FSUB: ready pulses exactly once", t.ready_count == 1);
         check("FSUB: pcpi_rd == 0x3C00", t.rd_ok);
     }
 
-    // ---- FMUL: expected ready_first = 3 ----
-    std::printf("Test 3: FMUL.H (2.0 * 3.0 = 0x4600), expected ready cycle 3\n");
+    // ---- FMUL: expected ready_first = 0 ----
+    std::printf("Test 3: FMUL.H (2.0 * 3.0 = 0x4600), expected ready cycle 0\n");
     {
-        Timing t = run_timing(dut, 0x10B5008B, rs1_2, rs1_3, 0x4600, 3);
-        check("FMUL: no early fire (ready before cycle 3)", !t.early_fire);
-        check("FMUL: ready_first == 3", t.ready_first == 3);
+        Timing t = run_timing(dut, 0x10B5008B, rs1_2, rs1_3, 0x4600, 0);
+        check("FMUL: ready_first == 0", t.ready_first == 0);
         check("FMUL: ready pulses exactly once", t.ready_count == 1);
         check("FMUL: pcpi_rd == 0x4600", t.rd_ok);
     }
 
-    // ---- FDIV: expected ready_first = 5 (no early fire at cycles 0..4) ----
-    std::printf("Test 4: FDIV.H (3.0 / 2.0 = 0x3E00), expected ready cycle 5\n");
+    // ---- FDIV: expected ready_first = 3 (no early fire at cycles 0..2) ----
+    std::printf("Test 4: FDIV.H (3.0 / 2.0 = 0x3E00), expected ready cycle 3\n");
     {
-        Timing t = run_timing(dut, 0x12B5008B, rs1_3, rs1_2, 0x3E00, 5);
+        Timing t = run_timing(dut, 0x12B5008B, rs1_3, rs1_2, 0x3E00, 3);
         check("FDIV: wait asserted within 2 cycles", t.wait_first >= 0 && t.wait_first <= 2);
         check("FDIV: no wait gap before ready", !t.wait_gap);
-        check("FDIV: NO EARLY FIRE (ready stays low through cycle 4)", !t.early_fire);
-        check("FDIV: ready_first == 5", t.ready_first == 5);
+        check("FDIV: NO EARLY FIRE (ready stays low through cycle 2)", !t.early_fire);
+        check("FDIV: ready_first == 3", t.ready_first == 3);
         check("FDIV: ready pulses exactly once", t.ready_count == 1);
         check("FDIV: pcpi_wr high during ready", t.wr_ok);
         check("FDIV: pcpi_rd == 0x3E00", t.rd_ok);
         check("FDIV: no re-trigger after ready while valid held", !t.retrigger);
     }
 
-    // ---- standard-Zhinx encodings hit the same FSM ----
-    std::printf("Test 5: standard fadd.h (funct3=000) via same FSM timing\n");
+    // ---- standard-Zhinx encodings hit the same handshake ----
+    std::printf("Test 5: standard fadd.h (funct3=000) via same handshake timing\n");
     {
-        Timing t = run_timing(dut, 0x04B500D3, rs1_1, rs1_2, 0x4200, 3);
-        check("std fadd f3=000: ready_first == 3", t.ready_first == 3);
+        Timing t = run_timing(dut, 0x04B500D3, rs1_1, rs1_2, 0x4200, 0);
+        check("std fadd f3=000: ready_first == 0", t.ready_first == 0);
         check("std fadd f3=000: pcpi_rd == 0x4200", t.rd_ok);
-        t = run_timing(dut, 0x04B570D3, rs1_1, rs1_2, 0x4200, 3);
-        check("std fadd f3=111: ready_first == 3", t.ready_first == 3);
+        t = run_timing(dut, 0x04B570D3, rs1_1, rs1_2, 0x4200, 0);
+        check("std fadd f3=111: ready_first == 0", t.ready_first == 0);
         check("std fadd f3=111: pcpi_rd == 0x4200", t.rd_ok);
     }
 
-    // ---- unsupported encoding: FSM must NOT enter compute ----
+    // ---- unsupported encoding: wrapper must NOT enter compute ----
     std::printf("Test 6: unsupported fmin.h stays idle (no state-machine entry)\n");
     {
         Timing t = run_timing(dut, 0x0AB500D3, rs1_1, rs1_2, 0, 3);

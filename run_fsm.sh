@@ -3,7 +3,7 @@
 #
 # Verilates src/fpu_pcpi.sv (with the FPU datapath sources) as the top module
 # and drives the PCPI bus directly from tb/tb_pcpi_fsm.cpp. Asserts the exact
-# counter->ready cycle counts (FADD/FSUB/FMUL at counter==1, FDIV at counter==3)
+# busy->ready cycle counts (FADD/FSUB/FMUL at loop cycle 0, FDIV at loop cycle 3)
 # and the no-early-fire / single-pulse / no-re-trigger rules. No CPU/firmware.
 
 set -euo pipefail
