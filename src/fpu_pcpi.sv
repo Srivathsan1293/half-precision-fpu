@@ -4,12 +4,15 @@ module fpu_pcpi (
     output logic pcpi_wr, pcpi_wait, pcpi_ready,
     output logic [31:0] pcpi_rd
 );
-    reg [1:0] state_machine = 2'b00; //set to default
-    reg ready; //stores when answer has been computed
-    reg [1:0] counter;
-    // 3 states idle (00), compute (01), done (10)
-    //always pass operands and use flags to ignore wrong answers
-    // resetn is acitve low
+    // Option-1 handshake: fpnew-style busy flag with combinational ready/wr.
+    // The datapath is registered, so the answer is valid a fixed number of
+    // cycles after the operands are presented (pcpi_rs1/rs2 are held stable by
+    // PicoRV32 while pcpi_wait is asserted):
+    //   FADDSUB/FMUL: one register stage  -> valid 1 cycle after start (cyc==0)
+    //   FDIV:         4-stage pipeline    -> valid 4 cycles after start (cyc==3)
+    reg busy;
+    reg [1:0] cyc;
+    wire answer_valid = (fpu_op == 2'b11) ? (cyc == 2'd3) : (cyc == 2'd0);
     wire is_fpu_f3 = (pcpi_insn[14:12] == 3'b000);
     // Standard-op rounding-mode field (funct3). clang emits the dynamic rounding
     // encoding (funct3=111) for fadd.h/fsub.h/fmul.h/fdiv.h by default; since the
@@ -39,27 +42,21 @@ module fpu_pcpi (
                   : (instr_fsub | instr_std_fsub) ? 2'b01 : 2'b00;
 
 
+    assign pcpi_wait  = busy | start_compute;
+    assign pcpi_wr    = busy & answer_valid;
+    assign pcpi_ready = busy & answer_valid;
+
     always_ff @(posedge clk) begin
-        //set up outputs of system first
-        pcpi_wr <= (!state_machine[1]) & (state_machine[0]) & resetn & ready;
-        pcpi_wait <= (!state_machine[1]) & ( ((!state_machine[0]) & resetn & start_compute) | (start_compute & !ready & resetn) );
-        pcpi_ready <= (!state_machine[1]) & (state_machine[0]) & resetn & ready;
-
-        state_machine[1] <= resetn & ((state_machine[1] & pcpi_valid) | ((!state_machine[1]) & state_machine[0] & ready));
-        state_machine[0] <= (!state_machine[1]) & ( ((!state_machine[0]) & resetn & start_compute) | (start_compute & !ready & resetn) );
-
-        if (pcpi_wait) begin
-            counter <= counter + 1;
-            // FDIV has a 3-register pipeline (4 cycles), FADDSUB/FMUL only 1
-            // (2 cycles): assert ready as soon as each op's answer is valid.
-            if (counter == 2'd3 && fpu_op == 2'b11) begin
-                ready <= 1'd1;
-            end else if (counter == 2'd1 && fpu_op != 2'b11) begin
-                ready <= 1'd1;
-            end
-        end else begin
-            counter <= 2'd0;
-            ready <= 1'd0;
+        if (!resetn) begin
+            busy <= 1'b0;
+            cyc  <= 2'd0;
+        end else if (start_compute && !busy) begin
+            busy <= 1'b1;
+            cyc  <= 2'd0;
+        end else if (busy) begin
+            cyc <= cyc + 2'd1;
+            if (answer_valid)
+                busy <= 1'b0;
         end
     end
 
