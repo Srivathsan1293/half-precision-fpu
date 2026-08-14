@@ -1,0 +1,21 @@
+# ppa_fpnew.ys — PPA synthesis for fpnew_bench_top (FPNew FP16 slice).
+# Identical flow to ppa_combined_top.ys: synth -flatten, same ABC script,
+# `map -D ${ABC_DLY_PS}` token replaced by run_bench.sh, write_verilog redirected.
+#
+# Sources: vendored pulp-platform/fpnew (+ common_cells + fpu_div_sqrt_mvp
+# submodules), UNCHANGED at 355c388, + synth_scripts/fpnew_bench_top.sv.
+# Because Yosys 0.66's SV frontend cannot parse fpnew's SystemVerilog
+# (packaged `'{default:}` patterns, function `return`, SVA guards), the
+# sources are pre-converted to plain Verilog by sv2v via tools/sv2v_fpnew.sh;
+# this script then reads that converted file. FPVNEW_V token is replaced by
+# run_bench.sh with the per-run converted netlist path.
+
+read_verilog ${FPNEW_V}
+
+synth -top fpnew_bench_top
+read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib
+dfflibmap -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib -script "+strash;ifraig;scorr;dc2;dretime;strash;&get -n;&dch -f;&nf -v;&put;mfs2;strash;&get -n;&dch -f;&nf -v;&put;map -D ${ABC_DLY_PS}"
+clean
+stat -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+write_verilog -noattr synth_outputs/fpnew_synth.v

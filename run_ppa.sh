@@ -10,9 +10,13 @@ echo "PPA Analysis for fpu_test Top Module"
 echo "=============================================="
 echo ""
 
-# Step 1: Synthesize with Yosys
+# Step 1: Synthesize with Yosys (ABC_DLY_PS default 9000)
 echo "[Step 1] Synthesizing with Yosys + ABC..."
-yosys -q "$SCRIPT_DIR/synth_scripts/ppa_combined_top.ys"
+ABC_DLY_PS="${ABC_DLY_PS:-9000}"
+mkdir -p "$SCRIPT_DIR/synth_outputs"
+sed "s|map -D \${ABC_DLY_PS}|map -D ${ABC_DLY_PS}|" \
+    "$SCRIPT_DIR/synth_scripts/ppa_combined_top.ys" > "$SCRIPT_DIR/synth_outputs/.ppa_combined_top.ys"
+yosys -q "$SCRIPT_DIR/synth_outputs/.ppa_combined_top.ys"
 echo ""
 
 # Step 2: Check if netlist was created

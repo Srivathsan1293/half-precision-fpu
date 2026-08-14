@@ -1,0 +1,21 @@
+PicoRV32 + FPU-PCPI integration test
+cycles run: 69658 (done marker)
+  mm[0] sw=0x4400 hw=0x4400 match
+  mm[1] sw=0x4800 hw=0x4800 match
+  mm[2] sw=0x4a00 hw=0x4a00 match
+  mm[3] sw=0x4c00 hw=0x4c00 match
+  mm[4] sw=0x4800 hw=0x4800 match
+  mm[5] sw=0x4c00 hw=0x4c00 match
+  mm[6] sw=0x4e00 hw=0x4e00 match
+  mm[7] sw=0x5000 hw=0x5000 match
+  mm[8] sw=0x4a00 hw=0x4a00 match
+  mm[9] sw=0x4e00 hw=0x4e00 match
+  mm[10] sw=0x5080 hw=0x5080 match
+  mm[11] sw=0x5200 hw=0x5200 match
+  mm[12] sw=0x4c00 hw=0x4c00 match
+  mm[13] sw=0x5000 hw=0x5000 match
+  mm[14] sw=0x5200 hw=0x5200 match
+  mm[15] sw=0x5400 hw=0x5400 match
+  acc(final) sw=0x5e40 hw=0x5e40 match
+  cycles: SW soft-float phase = 64654  HW PCPI phase = 4861  speedup = 13.3006x
+STATUS: PASS

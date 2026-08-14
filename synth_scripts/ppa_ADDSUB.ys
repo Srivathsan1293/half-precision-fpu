@@ -1,11 +1,13 @@
 # Add/Sub (addsub) PPA — same mfs2 ABC mapping flow as ppa_combined_top.ys
 # and ppa_fpu_pcpi.ys so every netlist is reproducible and comparable.
+# The `map -D ${ABC_DLY_PS}` delay target is the default; run_bench.sh substitutes a
+# sweep value and redirects write_verilog into synth_outputs/_bench/.
 read_verilog -sv src/fpu_modules.sv
 read_verilog -sv src/fpu_FADDSUB.sv
 synth -top addsub -flatten
 read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib
 dfflibmap -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
-abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib -script "+strash;ifraig;scorr;dc2;dretime;strash;&get -n;&dch -f;&nf -v;&put;mfs2;strash;&get -n;&dch -f;&nf -v;&put;map -D 9000"
+abc -liberty sky130_fd_sc_hd__tt_025C_1v80.lib -script "+strash;ifraig;scorr;dc2;dretime;strash;&get -n;&dch -f;&nf -v;&put;mfs2;strash;&get -n;&dch -f;&nf -v;&put;map -D ${ABC_DLY_PS}"
 clean
 stat -liberty sky130_fd_sc_hd__tt_025C_1v80.lib
 write_verilog -noattr synth_outputs/ADDSUB_synth.v

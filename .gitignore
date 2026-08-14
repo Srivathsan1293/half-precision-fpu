@@ -15,3 +15,7 @@ tb/firmware/*.bin
 tb/firmware/*.hex
 plan.md
 goals.pdf
+out/
+synth_outputs/
+testing_results/bench_*/runs/
+testing_results/bench_*/netlists/

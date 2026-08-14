@@ -13,7 +13,11 @@ echo "PPA Analysis for fpu_pcpi (PCPI wrapper + FSM)"
 echo "=============================================="
 
 echo "[Step 1] Synthesizing with Yosys + ABC..."
-yosys -q synth_scripts/ppa_fpu_pcpi.ys
+ABC_DLY_PS="${ABC_DLY_PS:-9000}"
+mkdir -p synth_outputs
+sed "s|map -D \${ABC_DLY_PS}|map -D ${ABC_DLY_PS}|" \
+    synth_scripts/ppa_fpu_pcpi.ys > synth_outputs/.ppa_fpu_pcpi.ys
+yosys -q synth_outputs/.ppa_fpu_pcpi.ys
 
 if [ ! -f synth_outputs/fpu_pcpi_synth.v ]; then
     echo "ERROR: Synthesis failed or netlist not created!"
