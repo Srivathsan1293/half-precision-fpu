@@ -216,7 +216,51 @@ constants from the liberty file via `tools/fo4.py`.
 
 ---
 
-## 5. Running your own assembly / C program on the SoC
+## 5. `run_flops.sh` — FLOPS measurement (peak + realized)
+
+Measures the **FLOPS of the `fpu_pcpi` PCPI wrapper** (the module that
+interfaces with the PicoRV32 CPU), self-contained — every input is measured
+separately and combined into one report:
+
+1. **Process/area** — Yosys + ABC synthesis of `src/fpu_pcpi.sv` (area / GE /
+   cells / flops).
+2. **Process/speed** — OpenSTA clock sweep (LTP → Fmax, timing-closed Fmax).
+3. **Process/energy** — OpenSTA power at the timing-closed period (mW, pJ/op).
+4. **System/cycles** — Verilator SoC runs of the existing firmware workloads
+   (`benchmm` / `benchdig` / `benchdiv`), HW-phase cycle counts.
+5. **Report** — combines them into peak (interface-limited and datapath) and
+   realized FLOPS, plus process-node-independent FOMs (ops/FO4, kGE, pJ/op,
+   FLOPS/W) so the numbers can be compared to other designs regardless of
+   process node.
+
+```bash
+# Defaults: --dly 4000 --clks "10 9 8 7 6 5 4" --workloads benchmm benchdig benchdiv
+./run_flops.sh
+
+# Tune the synthesis / timing / workload selection:
+./run_flops.sh --dly 9000 --clks "14 13 12 11 10"
+./run_flops.sh --workloads benchmm benchdiv
+#   --dly  : ABC delay in ps (default 4000)
+#   --clks : clock period(s) in ns to try to close (default "10 9 8 7 6 5 4")
+#   --act  : signal activity factor for power (default 0.1)
+```
+
+- Needs `yosys`, `sta`/`opensta` (or `STA_BIN=/path/to/opensta`), and `verilator`.
+- Report → `testing_results/flops_<timestamp>/flops_report.md` (+ `flops.json`,
+  per-run `synth.log` / `sta.log` / workload logs).
+
+> **Why peak ≫ realized?** The `fpu_pcpi` FSM is *blocking*: it retires one op
+> per latency (FADD/FSUB/FMUL = 1 cycle, FDIV = 4), so the interface peak is
+> `Fmax/latency` (the underlying `fpu_test` datapath is a 1-op/cycle pipeline,
+> reported separately). Realized FLOPS instead measures the whole SoC stack —
+> each custom op costs ~30 extra cycles of firmware/loop/load-store overhead on
+> the single-issue PicoRV32 (the FPU itself spends only 1–4 of them), which is
+> why realized lands ~1/30th of peak. Compare **peak** against other FPU
+> designs; compare **realized** only against other whole systems.
+
+---
+
+## 6. Running your own assembly / C program on the SoC
 
 `run_cpu_test.sh run` builds a bare-metal RV32I image from your source file,
 links it with the IRQ stub + software emulator (so both hardware FP ops and
@@ -268,7 +312,7 @@ cat testing_results/dump.txt
 
 ---
 
-## 6. Summary of the other helper scripts
+## 7. Summary of the other helper scripts
 
 These are invoked internally by the pipelines above, but are also runnable
 standalone:
@@ -281,6 +325,7 @@ standalone:
 ./run_cpu_test.sh asmall tb/firmware/fpu_unsup_main.S 30000   # unsupported-op probe
 ./run_fsm.sh                    # PCPI FSM exact-timing verification
 ./run_pcpi_handshake.sh         # PCPI wait/ready handshake protocol
+./run_flops.sh                  # FLOPS of fpu_pcpi: peak + realized + cross-node FOMs
 ```
 
 `run_cpu_test.sh` usage:
@@ -291,7 +336,7 @@ standalone:
 #       benchdiv | spike | emu | zhinx | run | asmall
 ```
 
-## 7. Keeping the tree clean
+## 8. Keeping the tree clean
 
 Build artifacts (`obj_dir_*`, `*.vcd`, `firmware.*`) are git-ignored, so you can
 run the scripts repeatedly without worrying about committing transient output.

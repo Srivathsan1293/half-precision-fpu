@@ -1,0 +1,42 @@
+{
+  "top": "fpu_pcpi",
+  "dly": 4000,
+  "activity": 0.1,
+  "area_um2": 34429.2704,
+  "ge": 9172.333333333334,
+  "cells": 6006,
+  "flops": 228,
+  "ltp_ns": 8.334,
+  "ltp_fo4": 224.0322580645161,
+  "fmax_ltp_mhz": 119.99040076793857,
+  "fmax_closed_mhz": 111.11111111111111,
+  "closed_clk_ns": 9,
+  "pj_op": 101.69999999999999,
+  "ops_per_fo4": 0.0044636429085673154,
+  "realized": {
+    "benchmm": {
+      "cycles": 4717,
+      "mflops": 3.3919864320542716,
+      "total": 144,
+      "mul": 64,
+      "add": 80,
+      "div": 0
+    },
+    "benchdig": {
+      "cycles": 6538,
+      "mflops": 2.651167533394514,
+      "total": 156,
+      "mul": 70,
+      "add": 86,
+      "div": 0
+    },
+    "benchdiv": {
+      "cycles": 4658,
+      "mflops": 3.0532894422976002,
+      "total": 128,
+      "mul": 0,
+      "add": 64,
+      "div": 64
+    }
+  }
+}

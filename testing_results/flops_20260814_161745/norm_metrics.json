@@ -1,0 +1,8 @@
+{
+  "lib": "sky130_fd_sc_hd__tt_025C_1v80.lib",
+  "nand2_area_um2": 3.7536,
+  "inv_c_in_ff": 2.3,
+  "fo4_ps": 37.2,
+  "fo4_ps_total": 57.7,
+  "fo4_note": "fo4_ps=37.2 is the load-slope FO4 increment (inv_1 delay at 4x C_in minus delay at 0.5x C_in, fast input slew); fo4_ps_total=57.7 is the absolute delay at 4x C_in. Ring-oscillator FO4 in sky130_fd_sc_hd typically lands between these (~50-90 ps). LTP-FO4 rows use fo4_ps."
+}

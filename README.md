@@ -119,6 +119,68 @@ Observations from the sweep:
   with published Sky130 datapoints (PicoRV32-class cores ~100–200 MHz; fp4/8
   units ~250 MHz on smaller/shallower datatypes).
 
+## FLOPS — Peak vs Realized (fp16)
+
+FLOPS is measured at the **`fpu_pcpi` wrapper** (the module that talks to the
+PicoRV32 CPU), not the raw datapath. It is a *single-lane scalar* FP16 unit, so
+the numbers are fp16 FLOPs — always quote the precision. Reproduce with:
+
+```
+./run_flops.sh     # synth fpu_pcpi + STA sweep + workload sims -> flops_report.md
+```
+
+From `testing_results/flops_20260814_161745/flops_report.md` (ABC `-D 4000`):
+
+| Metric | Value |
+|--------|-------:|
+| Area | 34.4 kµm² (9.2 kGE, 6,006 cells / 228 flops) |
+| LTP | 8.33 ns (224 FO4) |
+| Fmax = 1/LTP | 120 MHz |
+| Timing-closed Fmax | 111.1 MHz (clk 9 ns) |
+| Energy/op @ closed | 101.7 pJ |
+
+**Peak FLOPS (fp16).** The datapath (`fpu_test`) is a fully pipelined 1-op/cycle
+unit, but the PCPI wrapper *serializes* it — its FSM retires one op per latency
+(FADD/FSUB/FMUL = 1 cycle, FDIV = 4 cycles):
+
+| Variant | LTP-bound | Timing-closed |
+|---------|----------:|--------------:|
+| Datapath peak (any op) = Fmax | 120.0 MFLOP/s | 111.1 MFLOP/s |
+| Interface peak FADD/FSUB/FMUL = Fmax | 120.0 MFLOP/s | 111.1 MFLOP/s |
+| Interface peak FDIV = Fmax/4 | 30.0 MFLOP/s | 27.8 MFLOP/s |
+
+**Realized FLOPS (measured, SoC + firmware included).** Useful FP ops ×
+timing-closed Fmax ÷ HW-phase cycles, from the same `benchmm/benchdig/benchdiv`
+firmware workloads:
+
+| Workload | FP ops | HW cycles | Realized |
+|----------|-------:|----------:|---------:|
+| 4x4 fp16 matmul | 144 | 4,717 | 3.39 MFLOP/s |
+| 5-tap FIR | 156 | 6,538 | 2.65 MFLOP/s |
+| fp16 vector divide | 128 | 4,658 | 3.05 MFLOP/s |
+
+The gap to peak is **not an FPU defect**: each custom op costs ~30 extra cycles
+of CPU/firmware overhead (the 4-instruction `fpu_macros.h` wrapper, operand
+loads/stores, and serial accumulator dependencies on a single-issue PicoRV32).
+The FPU itself spends just 1 (add/mul) or 4 (div) of those cycles. Compare **peak
+FLOPS** against other FPU designs; compare **realized FLOPS** only against other
+whole systems (the `run_cycle_compare.sh` table is the fair system-level head-to-
+head, where the custom unit already beats FPNew by 2–6%).
+
+**Cross-node comparison (process-node-independent).** Raw FLOPS/MHz are not
+portable across process nodes. Normalized FOMs measured separately per axis:
+
+| FOM | Value |
+|-----|------:|
+| ops/FO4 (= 1/LTP_fo4) | 0.0045 |
+| FLOPS/GE (peak, LTP-bound) | 13.1 kFLOP/s/GE |
+| FLOPS/W (peak, closed) | 1.09 GFLOPS/W |
+| mW/MHz | 0.10 |
+| ADP | 287 kµm²·ns |
+
+Compare designs with **ops/FO4** (speed), **kGE** (area) and **pJ/op** (energy),
+never raw GFLOPS or MHz.
+
 ## Performance — Software vs Hardware (cycle counts)
 
 Real-world workloads run twice in firmware: a pure-software soft-float phase
@@ -185,6 +247,8 @@ Dependencies: `verilator`, `yosys`, `opensta`, `clang`/`llvm-ldd` (or
 ./run_exhaustive_tests.sh --run  # actually execute all stages (hours)
 
 ./run_cycle_compare.sh           # SW vs HW cycle-count comparison (custom + FPNew)
+
+./run_flops.sh                   # FLOPS of fpu_pcpi (peak + realized) + cross-node FOMs
 ```
 
 ## Project Structure
@@ -214,6 +278,7 @@ Dependencies: `verilator`, `yosys`, `opensta`, `clang`/`llvm-ldd` (or
 ├── run_pcpi_handshake.sh         # PCPI handshake verification
 ├── run_exhaustive_tests.sh       # 6-stage exhaustive pipeline
 ├── run_cycle_compare.sh          # SW vs HW cycle-count comparison (custom + FPNew)
+├── run_flops.sh                  # FLOPS of fpu_pcpi: peak (interface/datapath) + realized + cross-node FOMs
 └── testing_results/              # Logs, PPA reports, cycle-comparison reports
 ```
 
