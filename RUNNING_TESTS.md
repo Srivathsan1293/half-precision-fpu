@@ -51,6 +51,24 @@ sudo pacman -S riscv64-elf-gcc
 > via `cargo install sv2v` (Rust) or build from
 > <https://github.com/zachjs/sv2v>.
 
+### If you just pulled the repo from GitHub
+
+The FPNew reference unit is **vendored into the repository** (`third_party/fpnew/`,
+including its `common_cells` / `fpu_div_sqrt_mvp` submodules and the `vendor/`
+trees — all ~249 files are committed). There are **no git submodules to
+initialise**:
+
+```bash
+git clone https://github.com/Srivathsan1293/half-precision-fpu.git
+cd half-precision-fpu
+git submodule update --init --recursive   # optional: nothing to fetch, just a no-op
+```
+
+The only step needed beyond the prerequisites above is making sure `sv2v` is on
+`PATH` (see the note above). Everything else — the Sky130 liberty file, Yosys
+scripts, testbenches, firmware, and the vendored FPNew sources — ships with the
+repo. You can then go straight to `./run_cycle_compare.sh` (section 3).
+
 ### Verify the toolchain is available
 
 ```bash
@@ -117,6 +135,50 @@ Runs three workloads (`benchmm` 4x4 fp16 matmul, `benchdig` 5-tap FIR,
 
 > The FPNEW runs are best-effort. If you haven't converted FPNew yet, the
 > script notes the skipped FPNEW column rather than failing.
+
+### FPNEW conversion for SW-HW testing
+
+`run_cycle_compare.sh` measures the same firmware binary against the third-party
+**FPNew** unit (through `src/fpnew_pcpi_adapter.sv`). FPNew is written in
+SystemVerilog constructs that Yosys 0.66 cannot parse, so it is pre-converted to
+plain Verilog with `sv2v` before Verilating the SoC. This happens **automatically**
+inside `run_cycle_compare.sh` whenever `third_party/fpnew/` exists — you normally
+don't need to run anything by hand.
+
+What the script does per workload (`benchmm` / `benchdig` / `benchdiv`):
+
+1. Builds the firmware with the matching `FPU_TEST=<workload>` model.
+2. Calls `tools/sv2v_fpnew.sh obj_dir_tb_picorv32_fpnew_<workload>/fpnew_conv.v`
+   to convert the eight vendored FPNew sources (+ `common_cells`, the
+   `fpu_div_sqrt_mvp` divider, and the `vendor/cvw` fmalza block) into one
+   flat Verilog file.
+3. Verilates `soc_fpu_top` with the converted file, `src/fpnew_pcpi_adapter.sv`,
+   and `-DHAS_FPU_PCPI`, then runs it and parses the `cycles:` line.
+
+If you want to do the conversion by hand (e.g. to debug a failed FPNEW run, or
+before using `run_bench.sh fpnew`):
+
+```bash
+# Install sv2v first (see section 1). Then:
+tools/sv2v_fpnew.sh /tmp/fpnew_conv.v        # any output path works
+ls -la /tmp/fpnew_conv.v                     # plain Verilog, consumed by the ys scripts
+```
+
+Failure modes and what to check:
+
+- `sv2v: command not found` → install it (section 1). `tools/sv2v_fpnew.sh`
+  falls back to a bundled path only if one exists on your machine; on a fresh
+  clone you must provide it.
+- The script writes `sv2v_stderr.tmp` next to the output (project root in the
+  automatic flow) — that file holds the conversion warnings/errors.
+- If the FPNEW Verilator build fails, `run_cycle_compare.sh` records the reason
+  in `testing_results/logs/<workload>_fpnew.log` and the report shows `N/A` in
+  the FPNEW column; the custom-FPU column is unaffected.
+
+> `run_bench.sh fpnew` also uses the converted netlist, but it expects you to
+> have produced one and to point the Yosys script at it (`FPNEW_V` token in
+> `synth_scripts/ppa_fpnew.ys`). The automated SW-HW flow above is the supported
+> path.
 
 ---
 
