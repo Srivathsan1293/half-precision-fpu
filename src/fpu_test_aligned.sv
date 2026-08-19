@@ -3,7 +3,9 @@ module fpu_test (
     input logic [15:0] a, b,
     input logic [1:0] op,           // 0=ADD, 1=SUB, 2=MUL, 3=DIV
     input logic clk,
-    output logic [15:0] ans
+    input logic start,               // FDIV start pulse (operands latched)
+    output logic [15:0] ans,
+    output logic done                // FDIV result-capture pulse (sequential SRT)
 );
 
     // === FLAG COMPUTATION (shared across all 3 modules) ===
@@ -41,31 +43,19 @@ module fpu_test (
     );
 
     DIV divider (
-        .a(a), .b(b), .clk(clk),
+        .a(a), .b(b), .clk(clk), .start(start),
         .nanA(nanA), .nanB(nanB), .infinA(infinA), .infinB(infinB),
         .A0(A0), .B0(B0),
-        .out(FDIV_out)
+        .out(FDIV_out),
+        .done(done)
     );
-
-    // === PIPELINE ALIGNMENT ===
-    // FDIV is 4-stage pipeline, FMUL/FADDSUB datapaths are 1-stage each.
-    // Store FMUL and FADDSUB in three extra registers to align all outputs to 4 cycles.
-    
-    reg [15:0] FADDSUB_r, FADDSUB_r2, FADDSUB_r3;
-    reg [15:0] FMUL_r, FMUL_r2, FMUL_r3;
-
-    always_ff @(posedge clk) begin
-        FADDSUB_r <= FADDSUB_out;
-        FMUL_r <= FMUL_out;
-        FADDSUB_r2 <= FADDSUB_r;
-        FMUL_r2 <= FMUL_r;
-        FADDSUB_r3 <= FADDSUB_r2;
-        FMUL_r3 <= FMUL_r2;
-    end
 
     // === OUTPUT MUX ===
     // op[1] selects between MUL/DIV (high) and ADD/SUB (low)
     // op[0] within each pair: 0=ADD/SUB, 1=MUL/DIV
-    assign ans = op[1] ? (op[0] ? FDIV_out : FMUL_r3) : FADDSUB_r3;
+    // FADDSUB/FMUL are single-cycle registered datapaths. FDIV is a
+    // start-gated sequential SRT core: `start` latches the operands and the
+    // result is valid 12 cycles later (`out` stable after the `done` pulse).
+    assign ans = op[1] ? (op[0] ? FDIV_out : FMUL_out) : FADDSUB_out;
 
 endmodule

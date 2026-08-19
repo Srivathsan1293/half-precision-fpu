@@ -27,4 +27,4 @@ echo "[OK] Netlist created: synth_outputs/fpu_pcpi_synth.v"
 
 echo "[Step 2] Analyzing with OpenSTA..."
 STA_BIN="${STA_BIN:-$(command -v sta || command -v opensta)}"
-"$STA_BIN" synth_scripts/sta_fpu_pcpi.tcl
+"$STA_BIN" -exit synth_scripts/sta_fpu_pcpi.tcl

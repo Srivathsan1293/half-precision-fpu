@@ -1,98 +1,117 @@
 // Sub-modules for DIV datapath PPA profiling
+/* verilator lint_off DECLFILENAME */
 
-// Block 1: First Newton multiply + back-multiply + diff
-module div_newton_backmul(
-    input  logic [13:0] reciprocalB,
-    input  logic [10:0] final_manA,
-    input  logic [10:0] final_manB,
-    output logic [14:0] q_trial,
-    output logic [25:0] trial_A,
-    output logic [25:0] shifted_A,
-    output logic signed [27:0] diff,
-    output logic signed [27:0] B_align_signed
+// Radix-4 SRT quotient selection logic with parallel threshold evaluation.
+module QSL (
+    input  logic signed [7:0]  P_trunc,  // 8-bit signed
+    input  logic [10:0]        divs,     // divisor (manB), index = divs[9:6]
+    output logic signed [15:0] Muxout,   // q * D
+    output logic signed [2:0]  out
 );
-    logic [24:0] initial_prod;
-    assign initial_prod = reciprocalB * final_manA;
-    assign q_trial = initial_prod[24:10];
-    assign trial_A = q_trial * final_manB;
-    assign shifted_A = {2'b00, final_manA, 13'd0};
-    assign B_align_signed = $signed({17'd0, final_manB});
-    assign diff = $signed({2'b00, shifted_A}) - $signed({2'b00, trial_A});
-endmodule
+    wire signed [15:0] D = $signed({5'b0, divs}) <<< 2;
 
-// Block 2: Region comparison (7-branch refinement)
-module div_region_compare(
-    input  logic signed [27:0] diff,
-    input  logic signed [27:0] B_align_signed,
-    output logic signed [3:0]  q_adjust,
-    output logic              sticky_final
-);
-    logic signed [27:0] B_x2;
-    assign B_x2 = B_align_signed <<< 1;
+    // Parallel threshold lookup table
+    logic signed [7:0] t_p2, t_p1, t_m1, t_m2;
 
     always_comb begin
-        if (diff >= B_x2) begin
-            q_adjust = 4'd2;
-            sticky_final = (diff > B_x2);
-        end else if (diff >= B_align_signed) begin
-            q_adjust = 4'd1;
-            sticky_final = (diff > B_align_signed);
-        end else if (diff > 0) begin
-            q_adjust = 4'd0;
-            sticky_final = 1'b1;
-        end else if (diff == 0) begin
-            q_adjust = 4'd0;
-            sticky_final = 1'b0;
-        end else if (diff >= -B_align_signed) begin
-            q_adjust = -4'd1;
-            sticky_final = (diff != -B_align_signed);
-        end else if (diff >= -B_x2) begin
-            q_adjust = -4'd2;
-            sticky_final = (diff != -B_x2);
-        end else begin
-            q_adjust = -4'd3;
-            sticky_final = 1'b1;
-        end
+        case (divs[9:6])
+            4'b0000: {t_p2, t_p1, t_m1, t_m2} = {8'sd26, 8'sd10, -8'sd6,  -8'sd23};
+            4'b0001: {t_p2, t_p1, t_m1, t_m2} = {8'sd28, 8'sd11, -8'sd6,  -8'sd24};
+            4'b0010: {t_p2, t_p1, t_m1, t_m2} = {8'sd30, 8'sd12, -8'sd7,  -8'sd26};
+            4'b0011: {t_p2, t_p1, t_m1, t_m2} = {8'sd31, 8'sd12, -8'sd7,  -8'sd27};
+            4'b0100: {t_p2, t_p1, t_m1, t_m2} = {8'sd33, 8'sd13, -8'sd7,  -8'sd28};
+            4'b0101: {t_p2, t_p1, t_m1, t_m2} = {8'sd35, 8'sd14, -8'sd8,  -8'sd30};
+            4'b0110: {t_p2, t_p1, t_m1, t_m2} = {8'sd36, 8'sd14, -8'sd8,  -8'sd31};
+            4'b0111: {t_p2, t_p1, t_m1, t_m2} = {8'sd38, 8'sd15, -8'sd8,  -8'sd32};
+            4'b1000: {t_p2, t_p1, t_m1, t_m2} = {8'sd40, 8'sd16, -8'sd9,  -8'sd34};
+            4'b1001: {t_p2, t_p1, t_m1, t_m2} = {8'sd41, 8'sd16, -8'sd9,  -8'sd35};
+            4'b1010: {t_p2, t_p1, t_m1, t_m2} = {8'sd43, 8'sd17, -8'sd9,  -8'sd36};
+            4'b1011: {t_p2, t_p1, t_m1, t_m2} = {8'sd45, 8'sd18, -8'sd10, -8'sd38};
+            4'b1100: {t_p2, t_p1, t_m1, t_m2} = {8'sd46, 8'sd18, -8'sd10, -8'sd39};
+            4'b1101: {t_p2, t_p1, t_m1, t_m2} = {8'sd48, 8'sd19, -8'sd10, -8'sd40};
+            4'b1110: {t_p2, t_p1, t_m1, t_m2} = {8'sd50, 8'sd20, -8'sd11, -8'sd42};
+            default: {t_p2, t_p1, t_m1, t_m2} = {8'sd51, 8'sd20, -8'sd11, -8'sd43};
+        endcase
+    end
+
+    // Parallel comparison structure to eliminate cascaded priority multiplexers
+    always_comb begin
+        if      (P_trunc >= t_p2) begin out =  3'sd2;  Muxout =  (D <<< 1); end
+        else if (P_trunc >= t_p1) begin out =  3'sd1;  Muxout =  D;         end
+        else if (P_trunc >= t_m1) begin out =  3'sd0;  Muxout =  16'sd0;    end
+        else if (P_trunc >= t_m2) begin out = -3'sd1;  Muxout = -D;         end
+        else                      begin out = -3'sd2;  Muxout = -(D <<< 1); end
     end
 endmodule
 
-// Block 3: Quotient correction
-module div_quot_correct(
-    input  logic [14:0] q_trial,
-    input  logic signed [3:0] q_adjust,
-    input  logic               sticky_final,
-    output logic [24:0] prod
+// Radix-4 SRT division core computing floor(manA * 8192 / manB)
+module srt (
+    input  logic [10:0] manA, manB,
+    input  logic clk,
+    input  logic start,   // one-cycle pulse: begin a division from manA/manB
+    output logic [13:0] Quotient,
+    output logic        sticky,   // 1 iff division inexact at 14 quotient bits
+    output logic        done      // pulses one cycle after Quotient is refreshed
 );
-    logic [14:0] q_final;
-    assign q_final = q_trial + q_adjust;
-    assign prod = {q_final, 9'd0, sticky_final};
-endmodule
+    logic signed [15:0] R;
+    logic [15:0] Q, QM;
+    logic [3:0] counter;
+    logic active;
 
-// Block 4: Pre-shift normalization + underflow
-module div_norm(
-    input  logic [24:0] prod,
-    input  logic [6:0]  tentative_exp,
-    output logic [6:0]  normalised_exp,
-    output logic [24:0] normalised_prod,
-    output logic        underflow,
-    output logic [6:0]  underflow_amt,
-    output logic        tentative_S,
-    output logic [24:0] underflow_man
-);
-    assign normalised_exp = prod[23] ? tentative_exp : tentative_exp - 7'd1;
-    assign normalised_prod = prod[23] ? prod : (prod << 1);
+    // Shifted remainder (16-bit signed holds |4R| <= 21424 without overflow)
+    wire signed [15:0] shifted = R <<< 2;
 
-    assign underflow = normalised_exp[6] | (~|normalised_exp);
-    assign underflow_amt = normalised_exp[6] ? -normalised_exp : normalised_exp;
+    // 8-bit arithmetic truncation of 4R (floor toward -inf)
+    wire signed [7:0] P_trunc = shifted[15:8];
 
-    logic [24:0] underflow_mask;
-    assign underflow_mask = (25'd1 << (underflow_amt + 1)) - 1'b1;
+    wire signed [15:0] Muxout;
+    wire signed [2:0]  q;
 
-    logic raw_tentative_S;
-    assign raw_tentative_S = |(normalised_prod & underflow_mask);
-    assign tentative_S = underflow ? raw_tentative_S : 1'b0;
+    QSL selector (
+        .P_trunc(P_trunc),
+        .divs(manB),
+        .Muxout(Muxout),
+        .out(q)
+    );
 
-    logic [24:0] underflow_prod;
-    assign underflow_prod = normalised_prod >> (underflow_amt + 1);
-    assign underflow_man = underflow ? underflow_prod : normalised_prod;
+    // R_next = 4*R - q*D  (Muxout = q*D)
+    wire signed [15:0] next_rem = shifted - Muxout;
+
+    always_ff @(posedge clk) begin
+        if (start) begin
+            active  <= 1'b1;
+            counter <= 4'd0;
+            done    <= 1'b0;
+        end else if (active) begin
+            if (counter == 4'd0) begin
+                R  <= {5'b0, manA};
+                Q  <= 16'd0;
+                QM <= 16'd0;
+            end else if (counter <= 4'd8) begin
+                R <= next_rem;
+
+                case (q)
+                    3'sd2:  begin Q <= {Q[13:0],  2'b10}; QM <= {Q[13:0],  2'b01}; end
+                    3'sd1:  begin Q <= {Q[13:0],  2'b01}; QM <= {Q[13:0],  2'b00}; end
+                    3'sd0:  begin Q <= {Q[13:0],  2'b00}; QM <= {QM[13:0], 2'b11}; end
+                    -3'sd1: begin Q <= {QM[13:0], 2'b11}; QM <= {QM[13:0], 2'b10}; end
+                    -3'sd2: begin Q <= {QM[13:0], 2'b10}; QM <= {QM[13:0], 2'b01}; end
+                    default:;
+                endcase
+            end
+
+            if (counter == 4'd9) begin
+                Quotient <= (R < 0) ? (14'(QM >> 1)) : (14'(Q >> 1));
+                sticky <= (R != 16'd0);
+                done   <= 1'b1;
+            end
+
+            if (counter == 4'd10) begin
+                done   <= 1'b0;
+                active <= 1'b0;
+            end
+
+            counter <= counter + 1'b1;
+        end
+    end
 endmodule

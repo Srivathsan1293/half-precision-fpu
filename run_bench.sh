@@ -85,7 +85,7 @@ echo "==> clk  : ${CLK_ARR[*]} ns   activity $ACT"
                     -e "s|^set CLK_NS .*|set CLK_NS ${CLK}|" \
                     -e "/^set CLK_NS /a set ACTIVITY ${ACT}" \
                     "synth_scripts/$STA" > "$run/sta.tcl"
-                if ! "$STA_BIN" "$run/sta.tcl" > "$run/sta.log" 2>&1; then
+                if ! "$STA_BIN" -exit "$run/sta.tcl" > "$run/sta.log" 2>&1; then
                     echo "!! sta failed: $TOP dly=$DLY clk=$CLK"
                     continue
                 fi

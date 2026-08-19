@@ -4,11 +4,12 @@
 #
 # Stage A: per-module 4B (2^32) operand-combination tests. Rebuilds the four
 #          existing per-module testbenches (tb_fpu / tb_fADDSUB / tb_fMUL /
-#          tb_fDIV) against the OLD ALIGNED fpu_test.sv top
-#          (src/fpu_test_aligned.sv, 4-cycle output alignment for FADDSUB/FMUL
-#          vs the 4-stage FDIV). Each testbench sweeps the full
-#          0xFFFF x 0xFFFF x ops input space against an independent IEEE-754
-#          golden model and writes per-category failure logs.
+#          tb_fDIV) against the aligned fpu_test.sv top
+#          (src/fpu_test_aligned.sv, single-cycle FADDSUB/FMUL; FDIV is the
+#          sequential SRT core driven through its done-handshake). Each
+#          testbench sweeps the full 0xFFFF x 0xFFFF x ops input space against
+#          an independent IEEE-754 golden model and writes per-category failure
+#          logs.
 # Stage B: exhaustive re-run of every suite created in this project phase —
 #          fpu_stress (CPU stress + numeric sweep), standard-Zhinx integration
 #          (fpu_zhinx_main.c), and asm_all_ops.S.
@@ -117,19 +118,21 @@ run_visible() {
 }
 
 run_stage_a() {
-    stage_begin A "per-module 4B (2^32) exhaustive operand tests (old aligned fpu_test.sv)"
+    stage_begin A "per-module 4B (2^32) exhaustive operand tests (aligned fpu_test.sv)"
     local rc=0
     local aligned="src/fpu_test_aligned.sv"
     local combined="$aligned src/fpu_FMUL.sv src/fpu_FADDSUB.sv src/fpu_FDIV.sv"
     combined="$combined src/fpu_modules.sv src/fdiv_datapath_blocks.sv"
 
     # Testbench -> (obj-dir name, RTL top module, source files). The combined
-    # fpu_test top is the OLD ALIGNED version (src/fpu_test_aligned.sv, 4-cycle
-    # output alignment); tb_fpu and tb_fDIV use 4-deep history buffers to track
-    # in-flight inputs. tb_fADDSUB / tb_fMUL were written for a single-cycle
-    # interface (direct sub / no op mux), so they are built against per-module
-    # flag-computing shims (tb/fpu_test_{addsub,fmul}_wrap.sv) that expose the
-    # same port set while exercising the real addsub / FMUL datapaths.
+    # fpu_test top (src/fpu_test_aligned.sv) is single-cycle for FADDSUB/FMUL;
+    # tb_fpu streams those with a 1-deep history buffer and drives FDIV with
+    # the SRT done-handshake (output valid on `done`, input checked 2 done
+    # events after presentation). tb_fADDSUB / tb_fMUL were written for a
+    # single-cycle interface (direct sub / no op mux), so they are built
+    # against per-module flag-computing shims
+    # (tb/fpu_test_{addsub,fmul}_wrap.sv) that expose the same port set while
+    # exercising the real addsub / FMUL datapaths.
     while IFS='|' read -r tb exe top files; do
         local odir="obj_dir_${exe}"
         log "   building $tb -> $odir/V$top"
@@ -165,6 +168,9 @@ EOF
         log "   NOTE: tb_fADDSUB / tb_fMUL / tb_fDIV have no quick-mode bound and run"
         log "   the full 4.3e9-8.6e9-combination sweep (~minutes each). tb_fpu accepts"
         log "   an optional bound: ./obj_dir_fpu/Vfpu 64"
+        log "   FDIV is driven with the SRT done-handshake, so tb_fDIV is slower than"
+        log "   the old fixed-cycle stream (each of the 2^32 divisions needs an"
+        log "   11-22-cycle SRT period before its result is checked)."
     fi
     stage_end "$rc" A
 }

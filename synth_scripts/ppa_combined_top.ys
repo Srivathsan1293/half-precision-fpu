@@ -5,6 +5,7 @@ read_verilog -sv src/fpu_modules.sv
 read_verilog -sv src/fpu_FMUL.sv
 read_verilog -sv src/fpu_FADDSUB.sv
 read_verilog -sv src/fpu_FDIV.sv
+read_verilog -sv src/fdiv_datapath_blocks.sv
 read_verilog -sv src/fpu_test.sv
 synth -top fpu_test -flatten
 read_liberty -lib sky130_fd_sc_hd__tt_025C_1v80.lib

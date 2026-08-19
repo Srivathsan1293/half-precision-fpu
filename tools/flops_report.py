@@ -11,7 +11,7 @@ Reads the run tree produced by run_flops.sh and writes a self-contained report:
 
 FLOPS definition (fp16, single-lane scalar unit):
   - Peak, interface-limited: the fpu_pcpi FSM retires one op per latency
-    (FADD/FSUB/FMUL = 1 cyc, FDIV = 4 cyc), so peak = Fmax / latency.
+    (FADD/FSUB/FMUL = 1 cyc, FDIV = 12 cyc), so peak = Fmax / latency.
   - Peak, datapath: fpu_test is a fully pipelined 1-op/cycle datapath, so
     datapath peak = Fmax (the wrapper serializes this down to the interface rate).
   - Realized: (FP ops in workload) * Fmax / HW-phase cycles, measured from the
@@ -183,7 +183,7 @@ def main():
     md.append("## Peak FLOPS (fp16, single-lane)")
     md.append("")
     md.append("> `fpu_pcpi` is a *blocking* PCPI coprocessor: it retires one op per "
-              "latency (FADD/FSUB/FMUL = 1 cyc, FDIV = 4 cyc). Peak is therefore "
+              "latency (FADD/FSUB/FMUL = 1 cyc, FDIV = 12 cyc). Peak is therefore "
               "interface-limited to `Fmax / latency`. The underlying `fpu_test` "
               "datapath is fully pipelined at 1 op/cycle, so the datapath peak is "
               "`Fmax`; the wrapper serializes it. Both are reported; the interface "
@@ -195,8 +195,8 @@ def main():
         fmax_ltp or 0, fmax_closed or 0))
     md.append("| Interface peak FADD/FSUB/FMUL | Fmax / 1 | {:.1f} | {:.1f} |".format(
         fmax_ltp or 0, fmax_closed or 0))
-    md.append("| Interface peak FDIV | Fmax / 4 | {:.1f} | {:.1f} |".format(
-        (fmax_ltp or 0) / 4, (fmax_closed or 0) / 4))
+    md.append("| Interface peak FDIV | Fmax / 12 | {:.1f} | {:.1f} |".format(
+        (fmax_ltp or 0) / 12, (fmax_closed or 0) / 12))
     md.append("")
 
     md.append("## Realized FLOPS (measured, SoC + firmware overhead included)")

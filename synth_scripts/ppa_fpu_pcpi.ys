@@ -7,6 +7,7 @@ read_verilog -sv src/fpu_modules.sv
 read_verilog -sv src/fpu_FMUL.sv
 read_verilog -sv src/fpu_FADDSUB.sv
 read_verilog -sv src/fpu_FDIV.sv
+read_verilog -sv src/fdiv_datapath_blocks.sv
 read_verilog -sv src/fpu_test.sv
 read_verilog -sv src/fpu_pcpi.sv
 synth -top fpu_pcpi -flatten

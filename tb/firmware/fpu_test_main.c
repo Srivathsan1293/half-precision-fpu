@@ -43,6 +43,14 @@ int main(void) {
     const uint32_t INF   = 0x00007C00u;  /* +inf  */
     const uint32_t QNAN  = 0x00007E00u;  /* qNaN  */
 
+    /* subnormal (binary16 denormal) bit patterns */
+    const uint32_t MINSUB  = 0x00000001u;  /*  2^-24  (smallest subnormal) */
+    const uint32_t SUB2    = 0x00000002u;  /*  2^-23  */
+    const uint32_t SUB2_15 = 0x00000200u;  /*  2^-15  (subnormal) */
+    const uint32_t MAXSUB  = 0x000003FFu;  /*  largest subnormal */
+    const uint32_t NEGSUB  = 0x00008001u;  /* -2^-24  */
+    const uint32_t MINNRM  = 0x00000400u;  /*  2^-14  (smallest normal) */
+
     results[i++] = fadd_half(ONE, TWO);     /* 1.0 + 2.0  =  3.0  */
     results[i++] = fsub_half(TWO, ONE);     /* 2.0 - 1.0  =  1.0  */
     results[i++] = fmul_half(THREE, TWO);   /* 3.0 * 2.0  =  6.0  */
@@ -58,6 +66,21 @@ int main(void) {
     results[i++] = fdiv_half(THREE, TWO);   /* 3.0 / 2.0  =  1.5  */
     results[i++] = fadd_half(QNAN, ONE);    /* NaN + 1.0  =  NaN  */
     results[i++] = fdiv_half(ONE, QNAN);    /* 1.0 / NaN  =  NaN  */
+
+    /* Subnormal (denormal) corner cases */
+    results[i++] = fadd_half(MINSUB, MINSUB);   /* 2^-24 + 2^-24   = 2^-23        (subnormal out) */
+    results[i++] = fadd_half(MINSUB, MAXSUB);   /* 2^-24 + maxsub  = 2^-14        (gradual to normal) */
+    results[i++] = fadd_half(NEGSUB, MINSUB);   /* -2^-24 + 2^-24  = +0.0         */
+    results[i++] = fsub_half(SUB2, MINSUB);     /* 2^-23 - 2^-24   = 2^-24        (subnormal out) */
+    results[i++] = fsub_half(ZERO, MINSUB);     /* 0.0 - 2^-24     = -2^-24       (negative subnormal) */
+    results[i++] = fsub_half(MINSUB, SUB2);     /* 2^-24 - 2^-23   = -2^-24       (negative subnormal) */
+    results[i++] = fmul_half(SUB2, SUB2_15);    /* 2^-23 * 2^-15   = 0.0          (underflow) */
+    results[i++] = fmul_half(MINSUB, MINNRM);   /* 2^-24 * 2^-14   = 0.0          (underflow) */
+    results[i++] = fmul_half(SUB2_15, SUB2_15); /* 2^-15 * 2^-15   = 0.0          (underflow) */
+    results[i++] = fdiv_half(SUB2, MINSUB);     /* 2^-23 / 2^-24   = 2.0          */
+    results[i++] = fdiv_half(MINSUB, MINNRM);   /* 2^-24 / 2^-14   = 2^-10        */
+    results[i++] = fdiv_half(MINNRM, MINSUB);   /* 2^-14 / 2^-24   = 2^10         */
+    results[i++] = fdiv_half(MINSUB, NEGSUB);   /* 2^-24 / -2^-24  = -1.0         */
 
     *(volatile uint32_t *)TEST_MAGIC_ADDR = TEST_MAGIC_FPU;
     *(volatile uint32_t *)DONE_ADDR = DONE_MAGIC;

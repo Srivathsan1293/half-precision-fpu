@@ -35,7 +35,7 @@
 _start:
     .word   0x0600000B          # maskirq x0, 0: unmask the ebreak IRQ
 
-    # --- hardware ops (2-cycle FADD/FSUB/FMUL, 4-cycle FDIV) ---
+    # --- hardware ops (2-cycle FADD/FSUB/FMUL, variable-latency SRT FDIV) ---
     li      t0, 0x3C00          # 1.0
     li      t1, 0x4000          # 2.0
     fadd.h  s0, t0, t1          # r0 = 0x4200 (3.0)

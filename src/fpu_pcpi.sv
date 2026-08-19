@@ -4,17 +4,31 @@ module fpu_pcpi (
     output logic pcpi_wr, pcpi_wait, pcpi_ready,
     output logic [31:0] pcpi_rd
 );
-    // Option-1 handshake: fpnew-style busy flag with combinational ready/wr.
+    // fpnew-style busy flag with combinational ready/wr.
     // The datapath is registered, so the answer is valid a fixed number of
     // cycles after the operands are presented (pcpi_rs1/rs2 are held stable by
     // PicoRV32 while pcpi_wait is asserted):
     //   FADDSUB/FMUL: one register stage  -> valid 1 cycle after start (cyc==0)
-    //   FDIV:         4-stage pipeline    -> valid 4 cycles after start (cyc==3)
+    //   FDIV:         start-gated sequential SRT core  -> valid on the `done`
+    //                  pulse 11 cycles after the accept edge, with the quotient
+    //                  stable the following cycle. div_stage 0->1 on that
+    //                  done; answer_valid is asserted the cycle after the done,
+    //                  giving a fixed 12-cycle latency from accept to ready.
     reg busy;
     reg done_q;          // op completed; stays set until pcpi_valid falls so a
                          // held-high pcpi_valid can never re-trigger a new op
     reg [1:0] cyc;
-    wire answer_valid = (fpu_op == 2'b11) ? (cyc == 2'd3) : (cyc == 2'd0);
+    reg div_stage;       // FDIV done-handshake stage (0 = waiting done, 1 = done)
+    reg [1:0] fpu_op_q;  // registered op select; drives the result mux so the
+                         // pcpi_insn decode is not on the pcpi_insn->pcpi_rd path
+    wire div_done;       // DIV result-capture pulse from the datapath
+    wire is_fdiv = (fpu_op == 2'b11);
+    wire answer_valid = is_fdiv ? div_stage : (cyc == 2'd0);
+    // One-cycle datapath start pulse, issued exactly once per accepted op (the
+    // accept cycle). FDIV-only: FADD/FSUB/FMUL are single-cycle combinational
+    // datapaths that do not need it, and it must never re-trigger a division
+    // while pcpi_valid is held high.
+    wire fpu_start = is_fdiv & start_compute & !busy & !done_q;
     wire is_fpu_f3 = (pcpi_insn[14:12] == 3'b000);
     // Standard-op rounding-mode field (funct3). clang emits the dynamic rounding
     // encoding (funct3=111) for fadd.h/fsub.h/fmul.h/fdiv.h by default; since the
@@ -50,17 +64,30 @@ module fpu_pcpi (
 
     always_ff @(posedge clk) begin
         if (!resetn) begin
-            busy   <= 1'b0;
-            done_q <= 1'b0;
-            cyc    <= 2'd0;
+            busy      <= 1'b0;
+            done_q    <= 1'b0;
+            cyc       <= 2'd0;
+            div_stage <= 1'b0;
+            fpu_op_q  <= 2'b00;
         end else if (start_compute && !busy && !done_q) begin
-            busy   <= 1'b1;
-            cyc    <= 2'd0;
+            busy      <= 1'b1;
+            cyc       <= 2'd0;
+            div_stage <= 1'b0;
+            fpu_op_q  <= fpu_op;
         end else if (busy) begin
-            cyc <= cyc + 2'd1;
-            if (answer_valid) begin
-                busy   <= 1'b0;
-                done_q <= 1'b1;
+            if (is_fdiv) begin
+                if (div_done)
+                    div_stage <= 1'b1;
+                if (div_stage) begin
+                    busy   <= 1'b0;
+                    done_q <= 1'b1;
+                end
+            end else begin
+                cyc <= cyc + 2'd1;
+                if (answer_valid) begin
+                    busy   <= 1'b0;
+                    done_q <= 1'b1;
+                end
             end
         end else if (!pcpi_valid) begin
             done_q <= 1'b0;
@@ -69,7 +96,10 @@ module fpu_pcpi (
 
 
 
-    fpu_test u_fpu_test(.a(pcpi_rs1[15:0]), .b(pcpi_rs2[15:0]), .op(fpu_op), .clk(clk), .ans(pcpi_rd[15:0]));
+    fpu_test u_fpu_test(
+        .a(pcpi_rs1[15:0]), .b(pcpi_rs2[15:0]), .op(fpu_op), .op_q(fpu_op_q),
+        .clk(clk), .start(fpu_start), .ans(pcpi_rd[15:0]), .done(div_done)
+    );
     assign pcpi_rd[31:16] = 16'd0;
 
 

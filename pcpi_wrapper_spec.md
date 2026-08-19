@@ -49,8 +49,11 @@ The wrapper is instantiated by `tb/soc_fpu_top.sv` when the build defines
 
 ### 1.2 FPU-side ports (to/from `fpu_test`)
 
-`fpu_test` is a **4-cycle-aligned** pipeline: FADD/FSUB/FMUL/FDIV all produce
-their result exactly 4 clock cycles after the operands are first presented.
+`fpu_test` is now **single-cycle for FADD/FSUB/FMUL** (registered datapaths,
+result valid 1 cycle after the operands are presented) and a **start-gated
+radix-4 SRT core for FDIV** that signals completion via its `done` pulse (fixed
+11-cycle schedule after a `start` pulse; the wrapper uses the done-handshake
+described in §4).
 
 | Port | Width | Direction | Description |
 |------|-------|-----------|-------------|
@@ -58,7 +61,9 @@ their result exactly 4 clock cycles after the operands are first presented.
 | `b` | 16 | out | FPU operand B = `pcpi_rs2[15:0]` (binary16). |
 | `op` | 2 | out | Operation select: `2'b00`=ADD, `2'b01`=SUB, `2'b10`=MUL, `2'b11`=DIV. |
 | `clk` | 1 | out | Same clock as the wrapper (share the input clock). |
-| `ans` | 16 | in | FPU result. **Stable once the operands have been held constant for ≥ 4 cycles.** |
+| `start` | 1 | out | **FDIV start pulse.** Asserted for exactly one cycle on the accept edge; the DIV latches `a`/`b` then. Must be FDIV-only and never re-triggered while `pcpi_valid` is held. |
+| `ans` | 16 | in | FPU result. **Valid 1 cycle after the operands are presented for FADD/FSUB/FMUL; valid for FDIV on the cycle after the `done` pulse** (fixed 12 cycles after `start`). |
+| `done` | 1 | in | **FDIV completion pulse** (1 cycle, 11 cycles after `start`). The wrapper uses it to commit; see §4. |
 
 ---
 
@@ -173,31 +178,29 @@ wire [1:0] fpu_op = instr_fdiv ? 2'b11 : instr_fmul ? 2'b10
 
 ### 4.1 Timing budget
 
-`fpu_test` latency = **4 cycles**. Because operands are held constant for the
-whole instruction, the wrapper can either:
+The wrapper retires one op per instruction. Because `a`/`b`/`op` are held
+constant for the whole instruction, the result timing is:
 
-- count 4 cycles from the start edge and sample `ans`; or
-- wait any fixed number ≥ 4 cycles and sample (the answer is stable and
-  correct after fill).
-
-Either approach is immune to off-by-one errors as long as you sample **after**
-4 stable cycles. Note the CPU's first `pcpi_valid` cycle is when the pipeline
-is *fed*; you only know the instruction is accepted one cycle later (rising
-edge of the registered `pcpi_wait`), so budget accordingly. A safe, simple
-policy: start a 4-cycle counter on the accepted-instruction edge, and on the
-cycle the counter reaches its terminal count assert `pcpi_ready` with
-`pcpi_rd` driven combinationally as `{16'b0, ans}`. `ans` settles during that
-cycle (the last pipeline registers updated on the previous rising edge), and
-the CPU captures `pcpi_rd` on the following rising edge, so this meets timing.
-Only register `ans` into `pcpi_rd` first if you then assert `pcpi_ready` one
-cycle after latching.
+- **FADD / FSUB / FMUL**: single-cycle registered datapaths. Drive `ans`
+  through to `pcpi_rd` on the same cycle the datapath updates (the accepted
+  instruction edge + 1 cycle), then pulse `pcpi_ready`.
+- **FDIV**: start-gated sequential SRT core with a fixed 11-cycle schedule.
+  A one-cycle `start` pulse latches the operands on the accept edge; the core
+  reloads, runs 8 radix-4 iterations, emits the quotient, and pulses `done`
+  11 cycles later. The wrapper waits for this single `done` (ready fires the
+  cycle *after* `done`, when the quotient is stable on `pcpi_rd`). The latency
+  is **fixed: exactly 12 cycles** from accept to ready, independent of any
+  core phase (the SRT idles between divisions).
 
 ### 4.2 Idle gaps are harmless
 
 Between instructions (CPU fetching/executing base-ISA code) the wrapper does
 not drive meaningful operands, so the FPU pipeline holds garbage. This is fine
-because every accepted instruction always runs a fresh ≥4-cycle fill before
-its result is sampled. Never sample `ans` in the same cycle as the start edge.
+because every accepted instruction always runs a fresh fill before its result
+is sampled: FADD/FSUB/FMUL re-present their operands for 1 cycle, and FDIV
+re-latches its operands on the `start` pulse and re-presents the quotient on
+its `done`. Never sample `ans` in the same cycle as the start edge, and never
+for FDIV outside the cycle after `done`.
 
 ---
 
@@ -227,7 +230,7 @@ Three states are sufficient:
 | State | Outputs | Transition |
 |-------|---------|-----------|
 | IDLE | `pcpi_wait=0, pcpi_ready=0, pcpi_wr=0` | → COMPUTE on the accepted-instruction edge (rising edge of `pcpi_valid`/registered `pcpi_wait` with `instr_any`). |
-| COMPUTE | `pcpi_wait=1` (stall + suppress timeout), operands continuously driven into `fpu_test` | → DONE after ≥4 cycles (counter). |
+| COMPUTE | `pcpi_wait=1` (stall + suppress timeout), operands continuously driven into `fpu_test` | → DONE when the datapath result is valid: cycle 1 for FADD/FSUB/FMUL (`cyc==0`), or the cycle after the `done` pulse for FDIV (fixed 12 cycles after the accept edge). |
 | DONE | `pcpi_wait=1, pcpi_ready=1, pcpi_wr=1, pcpi_rd={16'b0, ans}` for one cycle | → IDLE when `instr_any` falls (instruction retired). |
 
 Requirements recap (what your FSM must guarantee):
@@ -237,8 +240,11 @@ Requirements recap (what your FSM must guarantee):
 3. `pcpi_ready` + `pcpi_wr` high for exactly one cycle; `pcpi_rd` valid then.
 4. Do not re-trigger while `pcpi_valid` is still high after `pcpi_ready`;
    re-arm only once the instruction is gone.
-5. Drive `a/b/op` continuously (they are stable inputs) and sample `ans` only
-   after ≥4 stable cycles.
+5. Drive `a/b/op` continuously (they are stable inputs); sample `ans` at the
+   op-specific commit point (cycle 1 for FADD/FSUB/FMUL, the cycle after the
+   `done` pulse for FDIV). For FDIV, assert the one-cycle `start` pulse on the
+   accept edge so the operands are latched deterministically — never sample
+   `ans` mid-computation.
 6. On `resetn`, return to IDLE with all outputs deasserted.
 
 ---

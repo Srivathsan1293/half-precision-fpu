@@ -79,7 +79,7 @@ for CLK in $CLKS; do
         -e "s|^set CLK_NS .*|set CLK_NS ${CLK}|" \
         -e "/^set CLK_NS /a set ACTIVITY ${ACT}" \
         synth_scripts/sta_fpu_pcpi.tcl > "$work/sta.tcl"
-    if ! "$STA_BIN" "$work/sta.tcl" > "$work/sta.log" 2>&1; then
+    if ! "$STA_BIN" -exit "$work/sta.tcl" > "$work/sta.log" 2>&1; then
         echo "!! sta failed at clk=$CLK (see $work/sta.log)"
         exit 1
     fi

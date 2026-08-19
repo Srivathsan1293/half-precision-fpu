@@ -8,7 +8,7 @@
 #
 # What you get:
 #   - Hardware FP ops (fadd.h/fsub.h/fmul.h/fdiv.h) run on the real RTL
-#     datapaths via the PCPI coprocessor (2-cycle FADD/FSUB/FMUL, 4-cycle FDIV).
+#     datapaths via the PCPI coprocessor (2-cycle FADD/FSUB/FMUL, variable-latency SRT FDIV).
 #   - Emulated FP ops (fmin/fmax/feq/flt/fle/fcvt*/fsgnj*/fclass) trap to the
 #     0x800 IRQ handler, run in the C emulator, and resume transparently.
 #   - Plain RV32I instructions run natively.

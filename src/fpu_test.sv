@@ -1,9 +1,12 @@
 // src/fpu_test.sv
 module fpu_test (
     input logic [15:0] a, b,
-    input logic [1:0] op,           // 0=ADD, 1=SUB, 2=MUL, 3=DIV
+    input logic [1:0] op,           // 0=ADD, 1=SUB, 2=MUL, 3=DIV (datapath)
+    input logic [1:0] op_q,         // registered op: drives the result mux select
     input logic clk,
-    output logic [15:0] ans
+    input logic start,               // FDIV start pulse (operands latched)
+    output logic [15:0] ans,
+    output logic done                // FDIV result-capture pulse (sequential SRT)
 );
 
     // === FLAG COMPUTATION (shared across all 3 modules) ===
@@ -41,15 +44,21 @@ module fpu_test (
     );
 
     DIV divider (
-        .a(a), .b(b), .clk(clk),
+        .a(a), .b(b), .clk(clk), .start(start),
         .nanA(nanA), .nanB(nanB), .infinA(infinA), .infinB(infinB),
         .A0(A0), .B0(B0),
-        .out(FDIV_out)
+        .out(FDIV_out),
+        .done(done)
     );
 
     // === OUTPUT MUX ===
-    // op[1] selects between MUL/DIV (high) and ADD/SUB (low)
-    // op[0] within each pair: 0=ADD/SUB, 1=MUL/DIV
-    assign ans = op[1] ? (op[0] ? FDIV_out : FMUL_out) : FADDSUB_out;
+    // op_q[1] selects between MUL/DIV (high) and ADD/SUB (low)
+    // op_q[0] within each pair: 0=ADD/SUB, 1=MUL/DIV
+    // FADDSUB/FMUL are single-cycle registered datapaths. FDIV is a
+    // start-gated sequential SRT core: `start` latches the operands and the
+    // result is valid 12 cycles later (`out` stable after the `done` pulse).
+    // op_q is a copy of op registered at the op-accept edge, so the result mux
+    // select is not on the pcpi_insn -> pcpi_rd combinational path.
+    assign ans = op_q[1] ? (op_q[0] ? FDIV_out : FMUL_out) : FADDSUB_out;
 
 endmodule
