@@ -260,7 +260,111 @@ separately and combined into one report:
 
 ---
 
-## 6. Running your own assembly / C program on the SoC
+## 6. Post-PnR analysis — OpenLane physical design of the FPU
+
+The `fpu_pcpi` wrapper is taken through the full OpenLane 2 PnR flow on the
+Sky130A PDK (synthesis → floorplan → placement → CTS → routing → fill → RC
+extraction → signoff STA, DRC, LVS). The repo ships OpenLane 2.3.10 in
+`OpenLane2/venv/bin/openlane`, and the design sources/configs under
+`designs/fpu_pcpi/`:
+
+```
+designs/fpu_pcpi/
+├── config.json                         # baseline PnR config (CLOCK_PERIOD = 10 ns)
+├── src/fpu_pcpi.v                      # sv2v-flattened RTL consumed by the flow
+└── pareto/
+    ├── config_{10,13,15,20,30}ns.json  # Pareto-sweep configs (clock targets)
+    └── runs/                           # pareto_10ns .. pareto_30ns
+```
+
+### Prerequisites
+
+- **OpenLane 2** — either the bundled venv (`OpenLane2/venv/bin/openlane`,
+  v2.3.10) or the matching Docker image `ghcr.io/efabless/openlane2:2.3.10`.
+- **PDK** — sky130A via volare at `~/.volare`. The pre-route PPA flow uses the
+  shipped liberty file, but the PnR flow needs the full PDK for its Magic/KLayout
+  views and LVS.
+- **KLayout + Magic** — invoked by the DRC/LVS steps; **matplotlib** for the
+  plots. (Magic/KLayout need not be on `PATH` if you use the Dockerized flow.)
+
+### Baseline PnR run
+
+```bash
+# Native, with the OpenLane 2 venv bundled in the repo:
+OpenLane2/venv/bin/openlane --pdk-root ~/.volare \
+    --run-tag pnr_run16 designs/fpu_pcpi/config.json
+
+# Dockerized alternative (mount project + PDK):
+docker run --rm -v "$PWD":/work -v ~/.volare:/volare -w /work \
+    -e PDK_ROOT=/volare ghcr.io/efabless/openlane2:2.3.10 \
+    --pdk-root /volare --run-tag pnr_run16 designs/fpu_pcpi/config.json
+```
+
+- Run directory: `designs/fpu_pcpi/runs/fpu_pcpi_pnr_run16/` — 74 numbered step
+  dirs plus `final/`. Pick a fresh `--run-tag` per run, or add `--overwrite` to
+  rerun the same tag.
+- The flow is signoff-clean when the run dir's `error.log` is empty and the
+  checker steps (`checker-magicdrc`, `checker-klayoutdrc`, `checker-lvs`) pass.
+
+### Pareto sweep across clock targets
+
+```bash
+cd designs/fpu_pcpi/pareto
+for t in 10 13 15 20 30; do
+    OpenLane2/venv/bin/openlane --pdk-root ~/.volare \
+        --run-tag pareto_${t}ns config_${t}ns.json
+done
+```
+
+(Dockerized: use the `docker run ...` form above with `-w /work/designs/fpu_pcpi/pareto`.)
+
+### Reading the signoff metrics
+
+`final/metrics.json` holds each step's key metric. The ones used for PPA:
+
+| Metric | `metrics.json` key | run15 (10 ns) |
+|---|---|---|
+| Standard cells | `design__instance__count` | 4,137 |
+| Stdcell area | `design__instance__area` (µm²) | 31,290 |
+| Total power | `power__total` (W, OpenROAD) | 8.19 mW |
+| Setup WNS (tt) | `timing__setup__wns__corner:nom_tt_025C_1v80` | met (slack reported in the STA log) |
+| Setup / hold violations | `timing__setup_vio__count__corner:...` / `timing__hold_vio__count__corner:...` | 0 |
+| DRC (KLayout + Magic) | `checker-magicdrc` / `checker-klayoutdrc` step reports | 0 |
+| LVS | `checker-lvs` / `68-netgen-lvs/reports/lvs.netgen.rpt` | 0 |
+
+DRC/LVS detail reports live in the numbered step dirs, e.g.
+`.../fpu_pcpi_pnr_run15/63-klayout-drc/reports/drc_violations.klayout.json`
+and `.../68-netgen-lvs/reports/lvs.netgen.rpt`. `final/` also exports the GDS,
+DEF, LEF, SDC, SDF, SPEF, spice, and the standard-cell `.lib` timing model.
+
+### Post-PnR visualizations + Pareto plot
+
+```bash
+# Full routed die: KLayout screenshot of final/gds/fpu_pcpi.gds -> final/die.png
+# (rendered in KLayout using the PDK tech file
+#  ~/.volare/volare/sky130/versions/<ver>/sky130A/libs.tech/klayout/tech/sky130A.lyt)
+
+# CTS clock-tree routing view from the final DEF:
+python3 tools/render_cts.py \
+    designs/fpu_pcpi/runs/fpu_pcpi_pnr_run15/final/def/fpu_pcpi.def \
+    designs/fpu_pcpi/runs/fpu_pcpi_pnr_run15/final/cts.png
+
+# Placement density heatmap from the final DEF:
+python3 tools/placement_density_map.py \
+    designs/fpu_pcpi/runs/fpu_pcpi_pnr_run15/final/def/fpu_pcpi.def \
+    designs/fpu_pcpi/runs/fpu_pcpi_pnr_run15/final/density/placement_density.png
+
+# Pareto curve (area + power vs clock target) from the sweep's metrics:
+python3 tools/plot_pareto.py    # -> testing_results/pareto_curve/pareto_curve.png
+```
+
+The expected 5-point sweep (current RTL) is tabulated in the README's PPA
+section; `SWaP_C_conclusion.md` frames the post-PnR numbers for the real-time
+FOC/robotics use case.
+
+---
+
+## 7. Running your own assembly / C program on the SoC
 
 `run_cpu_test.sh run` builds a bare-metal RV32I image from your source file,
 links it with the IRQ stub + software emulator (so both hardware FP ops and
@@ -312,7 +416,7 @@ cat testing_results/dump.txt
 
 ---
 
-## 7. Summary of the other helper scripts
+## 8. Summary of the other helper scripts
 
 These are invoked internally by the pipelines above, but are also runnable
 standalone:
@@ -336,7 +440,7 @@ standalone:
 #       benchdiv | spike | emu | zhinx | run | asmall
 ```
 
-## 8. Keeping the tree clean
+## 9. Keeping the tree clean
 
 Build artifacts (`obj_dir_*`, `*.vcd`, `firmware.*`) are git-ignored, so you can
 run the scripts repeatedly without worrying about committing transient output.

@@ -1,0 +1,11 @@
+{
+  "DESIGN_NAME": "fpu_pcpi",
+  "VERILOG_FILES": [
+    "dir::../src/fpu_pcpi.v"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 10.0,
+  "pdk": "sky130A",
+  "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
+  "IO_DELAY_CONSTRAINT": 0
+}
