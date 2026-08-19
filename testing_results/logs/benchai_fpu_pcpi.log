@@ -1,0 +1,23 @@
+==> Building firmware (benchai) ...
+make: Entering directory '/home/srivathsann/Documents/uni/DECA/FPU_project/tb/firmware'
+ld.lld -m elf32lriscv -T link_ai.ld -nostdlib fpu_bench_ai_layer_main.o -o firmware.elf
+llvm-objcopy -O binary firmware.elf firmware.bin
+python3 bin2hex.py firmware.bin firmware.hex
+make: Leaving directory '/home/srivathsann/Documents/uni/DECA/FPU_project/tb/firmware'
+==> Verilating SoC top (soc_fpu_top) ...
+make: Entering directory '/home/srivathsann/Documents/uni/DECA/FPU_project/obj_dir_tb_picorv32'
+make: Nothing to be done for 'default'.
+make: Leaving directory '/home/srivathsann/Documents/uni/DECA/FPU_project/obj_dir_tb_picorv32'
+- V e r i l a t i o n   R e p o r t: Verilator 5.050 2026-07-01 rev v5.050
+- Verilator: Built from 0.000 MB sources in 0 modules, into 0.000 MB in 0 C++ files needing 0.000 MB
+- Verilator: Walltime 0.005 s (elab=0.000, cvt=0.000, bld=0.005); cpu 0.000 s on 0 threads; allocated 16.820 MB
+==> Running simulation ...
+PicoRV32 + FPU-PCPI integration test
+cycles run: 39803 (done marker)
+  ai[0] sw=0x3104 hw=0x3104 match
+  ai[1] sw=0x34e5 hw=0x34e5 match
+  ai[2] sw=0x3749 hw=0x3749 match
+  ai[3] sw=0x2d41 hw=0x2d41 match
+  acc(final) sw=0x3c00 hw=0x3c00 match
+  cycles: SW soft-float phase = 37405  HW PCPI phase = 2252  speedup = 16.6097x
+STATUS: PASS

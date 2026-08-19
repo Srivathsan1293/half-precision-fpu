@@ -15,6 +15,8 @@
 #                                fp16 digital FIR filter; same wrapper requirements)
 #   ./run_cpu_test.sh benchdiv   Week 2 SW-vs-HW cycle-count benchmark (fp16
 #                                vector divide; same wrapper requirements)
+#   ./run_cpu_test.sh benchai    Week 3 SW-vs-HW cycle-count benchmark (micro AI
+#                                dense layer + normalization; same wrapper)
 #   ./run_cpu_test.sh spike      validate the ebreak-IRQ resume-PC premise
 #                                (no wrapper: an unclaimed FP instruction must
 #                                trap to the 0x800 handler with P+4 in q-reg 0)
@@ -69,6 +71,11 @@ elif [ "$MODE" = "benchdiv" ]; then
     EXTRA_DEF="-DHAS_FPU_PCPI"
     WRAPPER_SRC="src/fpu_pcpi.sv"
     MODEL="FPU_TEST=benchdiv"
+elif [ "$MODE" = "benchai" ]; then
+    # Week 3 SW-vs-HW cycle-count benchmark (micro AI dense layer + norm).
+    EXTRA_DEF="-DHAS_FPU_PCPI"
+    WRAPPER_SRC="src/fpu_pcpi.sv"
+    MODEL="FPU_TEST=benchai"
 elif [ "$MODE" = "spike" ]; then
     EXTRA_DEF=""
     WRAPPER_SRC=""

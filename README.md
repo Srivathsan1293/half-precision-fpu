@@ -106,7 +106,8 @@ fixed during pipelining so the exhaustive check genuinely passes:
 
 ### System-level benchmarks
 
-- `run_cycle_compare.sh` — benchmm / benchdig / benchdiv, software vs hardware,
+- `run_cycle_compare.sh` — benchmm / benchdig / benchdiv / benchai, software vs
+  hardware,
   custom FPU vs FPNew (see Performance section above).
 - `run_flops.sh` — peak + realized FLOPS and cross-node FOMs (see FLOPS section).
 
@@ -220,14 +221,15 @@ radix-4 SRT core):
 | Interface peak FDIV ≈ Fmax/12 (core-bound) | 11.4 MFLOP/s | 10.4 MFLOP/s |
 
 **Realized FLOPS (measured, SoC + firmware included).** Useful FP ops ×
-timing-closed Fmax ÷ HW-phase cycles, from the same `benchmm/benchdig/benchdiv`
-firmware workloads:
+timing-closed Fmax ÷ HW-phase cycles, from the same
+`benchmm/benchdig/benchdiv/benchai` firmware workloads:
 
 | Workload | FP ops | HW cycles | Realized |
 |----------|-------:|----------:|---------:|
 | 4x4 fp16 matmul | 144 | 4,717 | 3.82 MFLOP/s |
 | 5-tap FIR | 156 | 6,538 | 2.98 MFLOP/s |
 | fp16 vector divide | 128 | 5,170 | 3.09 MFLOP/s |
+| Micro AI dense + normalize | 76 | 2,252 | **4.22 MFLOP/s** |
 
 The gap to peak is **not an FPU defect**: each custom op costs ~30 extra cycles
 of CPU/firmware overhead (the 4-instruction `fpu_macros.h` wrapper, operand
@@ -235,7 +237,8 @@ loads/stores, and serial accumulator dependencies on a single-issue PicoRV32).
 The FPU itself spends just 1 (add/mul) or 12 (div) of those cycles. Compare **peak
 FLOPS** against other FPU designs; compare **realized FLOPS** only against other
 whole systems (the `run_cycle_compare.sh` table is the fair system-level head-to-
-head, where the custom unit already beats FPNew by 2–6% on matmul/FIR).
+head, where the custom unit beats FPNew by 2–3% on matmul/FIR/AI and trails ~4%
+only on the divide-heavy loop).
 
 **Cross-node comparison (process-node-independent).** Raw FLOPS/MHz are not
 portable across process nodes. Normalized FOMs measured separately per axis:
@@ -259,21 +262,22 @@ custom0 instructions. The same binary is measured against the **custom FPU PCPI
 wrapper** and the third-party **FPNew** unit (via `src/fpnew_pcpi_adapter.sv`).
 Each run is checked against the golden model (all results match bit-for-bit).
 
-From `testing_results/cycle_comparison_20260819_125404.md`:
+From `testing_results/cycle_comparison_20260819_155138.md`:
 
 | Workload | SW cycles | Custom FPU PCPI | FPNew | Speedup (PCPI vs SW) | Speedup (FPNew vs SW) |
 |----------|----------:|----------------:|------:|---------------------:|----------------------:|
 | 4x4 fp16 matrix multiply (`benchmm`) | 64,654 | 4,717 | 4,861 | **13.7x** | 13.3x |
 | 5-tap FIR filter (`benchdig`) | 70,410 | 6,538 | 6,694 | **10.8x** | 10.5x |
 | fp16 vector divide (`benchdiv`) | 88,651 | 5,170 | 4,978 | **17.1x** | 17.8x |
+| Micro AI dense layer + normalize (`benchai`) | 37,405 | 2,252 | 2,308 | **16.6x** | 16.2x |
 
-The custom unit matches or beats FPNew on every workload (3 % faster on matmul,
-2 % faster on FIR, ~4 % slower on the divide-heavy loop — the price of the
-deterministic fixed 12-cycle FDIV), and both are an order of magnitude faster
-than software emulation. Reproduce with:
+The custom unit matches or beats FPNew on most workloads (3 % faster on matmul,
+2 % faster on FIR, ~2 % faster on the AI layer) and trails only ~4 % on the
+divide-heavy loop — the price of the deterministic fixed 12-cycle FDIV — while
+both are an order of magnitude faster than software emulation. Reproduce with:
 
 ```
-./run_cycle_compare.sh     # builds + runs benchmm/benchdig/benchdiv, writes a .md report
+./run_cycle_compare.sh     # builds + runs benchmm/benchdig/benchdiv/benchai, writes a .md report
 ```
 
 ## CPU Integration (PicoRV32 + PCPI)
@@ -319,6 +323,11 @@ Dependencies: `verilator`, `yosys`, `opensta`, `clang`/`llvm-ldd` (or
 ./run_exhaustive_tests.sh        # 6-stage build-only exhaustive pipeline
 ./run_exhaustive_tests.sh --run  # actually execute all stages (hours)
 
+./run_cpu_test.sh benchmm       # SW-vs-HW cycle bench: 4x4 fp16 matmul
+./run_cpu_test.sh benchdig      # SW-vs-HW cycle bench: 5-tap FIR
+./run_cpu_test.sh benchdiv      # SW-vs-HW cycle bench: fp16 vector divide
+./run_cpu_test.sh benchai       # SW-vs-HW cycle bench: micro AI dense layer + normalize
+
 ./run_cycle_compare.sh           # SW vs HW cycle-count comparison (custom + FPNew)
 
 ./run_flops.sh                   # FLOPS of fpu_pcpi (peak + realized) + cross-node FOMs
@@ -344,6 +353,9 @@ Dependencies: `verilator`, `yosys`, `opensta`, `clang`/`llvm-ldd` (or
 │   ├── tb_fpu_pcpi.cpp           # SoC harness (SW/HW cycle counters, golden checks)
 │   ├── tb_fpu.cpp / tb_fADDSUB.cpp / tb_fMUL.cpp / tb_fDIV.cpp   # exhaustive
 │   └── firmware/                 # Bare-metal firmware (C, RV32I) + soft_half.h
+│                                 #   + benchmm/benchdig/benchdiv/benchai mains
+│                                 #   + link.ld / link_ai.ld (benchai uses the
+│                                 #     relaxed 0x1000 budget, no IRQ/emulator)
 ├── synth_scripts/                # Yosys (.ys) + OpenSTA (.tcl) PPA flows
 ├── tools/                        # sv2v conversion, PPA metric extraction
 ├── run_cpu_test.sh               # One-shot build + run (SoC tests)

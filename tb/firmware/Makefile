@@ -34,7 +34,7 @@ MABI   := ilp32
 
 # Bench modes compile the software soft-float phase as rv32im (hardware MUL),
 # so the SW-vs-HW comparison uses a generic real-world soft-float baseline.
-ifneq ($(filter bench benchmm benchdig benchdiv,$(FPU_TEST)),)
+ifneq ($(filter bench benchmm benchdig benchdiv benchai,$(FPU_TEST)),)
   MARCH := rv32im
 endif
 
@@ -54,6 +54,10 @@ else ifeq ($(FPU_TEST),benchdiv)
   # Week 2 SW-vs-HW cycle-count benchmark: fp16 vector divide (software
   # division is the FPU's strongest, most honest case).
   SRCS   := fpu_bench_div_main.c
+else ifeq ($(FPU_TEST),benchai)
+  # Week 3 SW-vs-HW cycle-count benchmark: Micro AI Dense Layer + softmax
+  # normalization (Y = W*X + B, then Y/sum(Y)), exercising FADD, FMUL, FDIV.
+  SRCS   := fpu_bench_ai_layer_main.c
 else ifeq ($(FPU_TEST),spike)
   SRCS   := fpu_spike_main.S
 else ifeq ($(FPU_TEST),emu)
@@ -80,7 +84,15 @@ endif
 
 CFLAGS  := -march=$(MARCH) -mabi=$(MABI) -nostdlib -ffreestanding -fno-builtin \
            -O2 -Wall -Wextra -I. -fno-unroll-loops
-LDFLAGS := -T link.ld -nostdlib
+
+# The AI-layer bench links no IRQ/emulator but needs all three soft-float
+# routines, so it uses link_ai.ld with the main-code budget relaxed to 0x1000.
+ifeq ($(FPU_TEST),benchai)
+  LINK_SCRIPT := link_ai.ld
+else
+  LINK_SCRIPT := link.ld
+endif
+LDFLAGS := -T $(LINK_SCRIPT) -nostdlib
 
 # The emulator's code lives in the .irq_handler section (0x800..0x1000, beside
 # the IRQ stub) so it never consumes the 0x0..0x800 main-code window that the

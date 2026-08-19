@@ -11,7 +11,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-WORKLOADS=(benchmm benchdig benchdiv)
+WORKLOADS=(benchmm benchdig benchdiv benchai)
 OUTDIR="testing_results"
 mkdir -p "$OUTDIR/logs"
 
@@ -51,6 +51,7 @@ run_fpnew() {
         benchmm) MAKE_MODEL=FPU_TEST=benchmm ;;
         benchdig) MAKE_MODEL=FPU_TEST=benchdig ;;
         benchdiv) MAKE_MODEL=FPU_TEST=benchdiv ;;
+        benchai) MAKE_MODEL=FPU_TEST=benchai ;;
         *) MAKE_MODEL=FPU_TEST=bench ;;
     esac
     make -C tb/firmware clean >/dev/null 2>&1 || true

@@ -52,6 +52,7 @@ static const uint32_t MAGIC_BENCH      = 0x5F50555E;
 static const uint32_t MAGIC_BENCH_MM   = 0x5F50555F;
 static const uint32_t MAGIC_BENCH_DIG  = 0x5F505560;
 static const uint32_t MAGIC_BENCH_DIV  = 0x5F505561;
+static const uint32_t MAGIC_BENCH_AI   = 0x41494E4E; /* "AINN" */
 
 static const uint64_t MAX_CYCLES = 200000;
 
@@ -259,11 +260,11 @@ static int check_stress(Vsoc_fpu_top* dut) {
 // The outputs must be bit-identical; the harness additionally reports the
 // cycle counts captured at the phase markers (see fpu_bench.h). `label`
 // names the workload in the per-sample printout.
-static int check_bench(Vsoc_fpu_top* dut, const char* label,
+static int check_bench(Vsoc_fpu_top* dut, const char* label, uint32_t n,
                        uint64_t sw_start, uint64_t sw_end,
                        uint64_t hw_start, uint64_t total) {
     int failures = 0;
-    const uint32_t N = BENCH_N_SAMPLES;
+    const uint32_t N = n;
 
     for (uint32_t i = 0; i < N; i++) {
         uint16_t sw = rd_ram(dut, RESULT_BASE + 4 * i) & 0xFFFF;
@@ -820,16 +821,20 @@ int main(int argc, char** argv) {
         } else if (magic == MAGIC_ASM_ALL) {
             failures = check_asm_all(dut);
         } else if (magic == MAGIC_BENCH) {
-            failures = check_bench(dut, "fir", bench_sw_start, bench_sw_end,
+            failures = check_bench(dut, "fir", BENCH_N_SAMPLES, bench_sw_start, bench_sw_end,
                                    bench_hw_start, cyc);
         } else if (magic == MAGIC_BENCH_MM) {
-            failures = check_bench(dut, "mm", bench_sw_start, bench_sw_end,
+            failures = check_bench(dut, "mm", BENCH_N_SAMPLES, bench_sw_start, bench_sw_end,
                                    bench_hw_start, cyc);
         } else if (magic == MAGIC_BENCH_DIG) {
-            failures = check_bench(dut, "dig", bench_sw_start, bench_sw_end,
+            failures = check_bench(dut, "dig", BENCH_N_SAMPLES, bench_sw_start, bench_sw_end,
                                    bench_hw_start, cyc);
         } else if (magic == MAGIC_BENCH_DIV) {
-            failures = check_bench(dut, "div", bench_sw_start, bench_sw_end,
+            failures = check_bench(dut, "div", BENCH_N_SAMPLES, bench_sw_start, bench_sw_end,
+                                   bench_hw_start, cyc);
+        } else if (magic == MAGIC_BENCH_AI) {
+            // Week 3 AI-layer bench: OUT_DIM=4 outputs (see fpu_bench_ai_layer_main.c).
+            failures = check_bench(dut, "ai", 4, bench_sw_start, bench_sw_end,
                                    bench_hw_start, cyc);
         } else {
             std::cout << "  unknown test magic 0x" << std::hex << magic << std::dec << "\n";
