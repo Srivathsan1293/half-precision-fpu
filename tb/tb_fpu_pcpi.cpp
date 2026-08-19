@@ -162,6 +162,20 @@ static const FPVec fpu_vectors[] = {
     {3, 0x4200, 0x4000},  // 3.0 / 2.0  =  1.5
     {0, 0x7E00, 0x3C00},  // NaN + 1.0  =  NaN
     {3, 0x3C00, 0x7E00},  // 1.0 / NaN  =  NaN
+    // Subnormal (denormal) corner cases, in lockstep with fpu_test_main.c
+    {0, 0x0001, 0x0001},  // 2^-24 + 2^-24   = 2^-23        (subnormal out)
+    {0, 0x0001, 0x03FF},  // 2^-24 + maxsub  = 2^-14        (gradual to normal)
+    {0, 0x8001, 0x0001},  // -2^-24 + 2^-24  = +0.0
+    {1, 0x0002, 0x0001},  // 2^-23 - 2^-24   = 2^-24        (subnormal out)
+    {1, 0x0000, 0x0001},  // 0.0 - 2^-24     = -2^-24       (negative subnormal)
+    {1, 0x0001, 0x0002},  // 2^-24 - 2^-23   = -2^-24       (negative subnormal)
+    {2, 0x0002, 0x0200},  // 2^-23 * 2^-15   = 0.0          (underflow)
+    {2, 0x0001, 0x0400},  // 2^-24 * 2^-14   = 0.0          (underflow)
+    {2, 0x0200, 0x0200},  // 2^-15 * 2^-15   = 0.0          (underflow)
+    {3, 0x0002, 0x0001},  // 2^-23 / 2^-24   = 2.0
+    {3, 0x0001, 0x0400},  // 2^-24 / 2^-14   = 2^-10
+    {3, 0x0400, 0x0001},  // 2^-14 / 2^-24   = 2^10
+    {3, 0x0001, 0x8001},  // 2^-24 / -2^-24  = -1.0
 };
 static const int fpu_vectors_count = sizeof(fpu_vectors) / sizeof(fpu_vectors[0]);
 
