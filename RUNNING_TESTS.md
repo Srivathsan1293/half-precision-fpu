@@ -264,9 +264,9 @@ separately and combined into one report:
 
 The `fpu_pcpi` wrapper is taken through the full OpenLane 2 PnR flow on the
 Sky130A PDK (synthesis → floorplan → placement → CTS → routing → fill → RC
-extraction → signoff STA, DRC, LVS). The repo ships OpenLane 2.3.10 in
-`OpenLane2/venv/bin/openlane`, and the design sources/configs under
-`designs/fpu_pcpi/`:
+extraction → signoff STA, DRC, LVS). OpenLane 2.3.10 is **not bundled in the
+repo** — install it as a native pip package or via the Docker image (see
+Prerequisites below); the design sources/configs live under `designs/fpu_pcpi/`:
 
 ```
 designs/fpu_pcpi/
@@ -279,8 +279,8 @@ designs/fpu_pcpi/
 
 ### Prerequisites
 
-- **OpenLane 2** — either the bundled venv (`OpenLane2/venv/bin/openlane`,
-  v2.3.10) or the matching Docker image `ghcr.io/efabless/openlane2:2.3.10`.
+- **OpenLane 2** — native `pip install openlane==2.3.10` (Python ≥ 3.10) or the
+  matching Docker image `ghcr.io/efabless/openlane2:2.3.10`.
 - **PDK** — sky130A via volare at `~/.volare`. The pre-route PPA flow uses the
   shipped liberty file, but the PnR flow needs the full PDK for its Magic/KLayout
   views and LVS.
@@ -290,8 +290,8 @@ designs/fpu_pcpi/
 ### Baseline PnR run
 
 ```bash
-# Native, with the OpenLane 2 venv bundled in the repo:
-OpenLane2/venv/bin/openlane --pdk-root ~/.volare \
+# Native (after pip install openlane==2.3.10):
+openlane --pdk-root ~/.volare \
     --run-tag pnr_run16 designs/fpu_pcpi/config.json
 
 # Dockerized alternative (mount project + PDK):
@@ -311,7 +311,7 @@ docker run --rm -v "$PWD":/work -v ~/.volare:/volare -w /work \
 ```bash
 cd designs/fpu_pcpi/pareto
 for t in 10 13 15 20 30; do
-    OpenLane2/venv/bin/openlane --pdk-root ~/.volare \
+    openlane --pdk-root ~/.volare \
         --run-tag pareto_${t}ns config_${t}ns.json
 done
 ```
