@@ -16,7 +16,8 @@
 //   6. pcpi_ready (+ pcpi_wr) pulses for exactly ONE cycle; pcpi_rd[31:16]=0
 //   7. pcpi_rd[15:0] holds the correct FPU result: FADD(1.0, 2.0) = 3.0 =
 //      0x4200 (option-1 handshake: ready asserted combinationally 1 cycle
-//      after accept for FADD/FSUB/FMUL, 4 cycles for FDIV)
+//      after accept for FADD/FSUB/FMUL; FDIV is fixed 12-cycle, driven by the
+//      start-gated sequential SRT `done` handshake)
 //   8. No re-trigger: while pcpi_valid stays high after the ready pulse,
 //      pcpi_ready/pcpi_wr must stay low (spec §2.2 req 4). pcpi_wait
 //      legitimately stays high while pcpi_valid is held (pcpi_wait = busy |

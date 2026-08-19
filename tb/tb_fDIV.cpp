@@ -109,141 +109,104 @@ int main(int argc, char** argv) {
     uint64_t cat_totals[CAT_COUNT] = {0};
     uint64_t cat_fails[CAT_COUNT]  = {0};
 
-    // 4-cycle history buffers to track inputs traveling through the pipeline
-    uint16_t hist_A[4] = {0, 0, 0, 0};
-    uint16_t hist_B[4] = {0, 0, 0, 0};
-
     uint64_t update_interval = total_combinations / 100;
     int bar_width = 50;
 
-    std::cout << "--- Starting Pipelined FDIV Hardware Test ---" << std::endl;
-    std::cout << "Pipeline Depth: 4 Clock Cycles\n";
+    std::cout << "--- Starting Start-Gated SRT FDIV Hardware Test ---" << std::endl;
+    std::cout << "FDIV core: fixed 12-cycle SRT (start pulse -> done 11 cycles -> answer 12th cycle)\n";
     std::cout << "Testing 4,294,967,296 combinations...\n\n";
 
-    for (uint32_t i = 0; i <= 0xFFFF; i++) {
-        for (uint32_t j = 0; j <= 0xFFFF; j++) {
+    // FDIV start-gated model: present each input with a one-cycle `start`
+    // pulse, then wait for the SRT `done` pulse (11 cycles later). The DIV
+    // captures the completed quotient at the done edge, so the answer is
+    // sampled on the cycle after `done`.
+    uint64_t n_presented = 0;
+    bool wait_done = false;
 
-            // Progress Indicator
-            if (total_tests % update_interval == 0 || total_tests == total_combinations) {
-                float progress = static_cast<float>(total_tests) / total_combinations;
-                int pos = static_cast<int>(bar_width * progress);
+    while (total_tests < total_combinations) {
+        // Present the next input with a one-cycle start pulse
+        dut->a = static_cast<uint16_t>((n_presented >> 16) & 0xFFFF);
+        dut->b = static_cast<uint16_t>(n_presented & 0xFFFF);
+        n_presented++;
+        wait_done = true;
 
-                std::cout << "\r[";
-                for (int k = 0; k < bar_width; ++k) {
-                    if (k < pos) std::cout << "=";
-                    else if (k == pos) std::cout << ">";
-                    else std::cout << " ";
-                }
-                std::cout << "] " << static_cast<int>(progress * 100.0) << " %" << std::flush;
-            }
+        dut->clk = 0;
+        dut->eval();
+        dut->start = 1;
+        dut->clk = 1;
+        dut->eval();
+        dut->start = 0;
 
-            uint16_t a = static_cast<uint16_t>(i);
-            uint16_t b = static_cast<uint16_t>(j);
-
-            // 1. Feed newest inputs to the hardware
-            dut->a = a;
-            dut->b = b;
-
-            // 2. Drive clock LOW and evaluate combinational paths (Ans updates here)
+        // Wait for the SRT done pulse; the quotient is captured at the done
+        // edge (posedge below), so `ans` is sampled on the following cycle.
+        while (wait_done) {
             dut->clk = 0;
             dut->eval();
-
-            // 3. CHECK THE OUTPUT BEFORE CLOCKING IT AWAY
-            if (total_tests >= 4) {
-                uint16_t check_a = hist_A[3];
-                uint16_t check_b = hist_B[3];
-
-                // Categorize based on the inputs exiting the pipeline
-                uint16_t expA = (check_a >> 10) & 0x1F;
-                uint16_t manA = check_a & 0x03FF;
-                uint16_t expB = (check_b >> 10) & 0x1F;
-                uint16_t manB = check_b & 0x03FF;
-
-                bool a_zero = (expA == 0 && manA == 0);
-                bool b_zero = (expB == 0 && manB == 0);
-                bool a_sub  = (expA == 0 && manA != 0);
-                bool b_sub  = (expB == 0 && manB != 0);
-                bool a_inf  = (expA == 31 && manA == 0);
-                bool b_inf  = (expB == 31 && manB == 0);
-                bool a_nan  = (expA == 31 && manA != 0);
-                bool b_nan  = (expB == 31 && manB != 0);
-
-                Category current_cat;
-                if (a_nan || b_nan)         current_cat = CAT_NAN;
-                else if (a_inf || b_inf)    current_cat = CAT_INF;
-                else if (a_zero || b_zero)  current_cat = CAT_ZERO;
-                else if (a_sub || b_sub)    current_cat = CAT_SUBNORM;
-                else                        current_cat = CAT_NORMAL;
-
-                cat_totals[current_cat]++;
-
-                uint16_t expected_ans = compute_golden_cpp_native(check_a, check_b);
-                uint16_t hw_ans = dut->ans; // Mapped from fpu_test.sv wrapper
-
-                if (hw_ans != expected_ans) {
-                    total_failed++;
-                    cat_fails[current_cat]++;
-
-                    int32_t delta = static_cast<int32_t>(expected_ans) - static_cast<int32_t>(hw_ans);
-
-                    log_files[current_cat]
-                    << "a=0x" << std::hex << std::setfill('0') << std::setw(4) << check_a
-                    << " | b=0x" << std::setw(4) << check_b
-                    << " | Expected=0x" << std::setw(4) << expected_ans
-                    << " | Got=0x" << std::setw(4) << hw_ans
-                    << " | Delta=" << std::dec << delta << "\n";
-                }
-            }
-
-            // 4. Drive clock HIGH to advance the pipeline for the NEXT cycle
+            wait_done = !dut->done;
             dut->clk = 1;
             dut->eval();
-
-            // 5. Shift the history buffer for the next cycle
-            hist_A[3] = hist_A[2];
-            hist_A[2] = hist_A[1];
-            hist_A[1] = hist_A[0];
-            hist_A[0] = a;
-
-            hist_B[3] = hist_B[2];
-            hist_B[2] = hist_B[1];
-            hist_B[1] = hist_B[0];
-            hist_B[0] = b;
-
-            total_tests++;
         }
-    }
-
-    // Flush the final 4 combinations left in the hardware pipeline
-    for (int k = 0; k < 4; k++) {
-        // Evaluate BEFORE clocking
         dut->clk = 0;
         dut->eval();
 
-        uint16_t check_a = hist_A[3];
-        uint16_t check_b = hist_B[3];
+        uint16_t check_a = static_cast<uint16_t>((total_tests >> 16) & 0xFFFF);
+        uint16_t check_b = static_cast<uint16_t>(total_tests & 0xFFFF);
+
+        uint16_t expA = (check_a >> 10) & 0x1F;
+        uint16_t manA = check_a & 0x03FF;
+        uint16_t expB = (check_b >> 10) & 0x1F;
+        uint16_t manB = check_b & 0x03FF;
+
+        bool a_zero = (expA == 0 && manA == 0);
+        bool b_zero = (expB == 0 && manB == 0);
+        bool a_sub  = (expA == 0 && manA != 0);
+        bool b_sub  = (expB == 0 && manB != 0);
+        bool a_inf  = (expA == 31 && manA == 0);
+        bool b_inf  = (expB == 31 && manB == 0);
+        bool a_nan  = (expA == 31 && manA != 0);
+        bool b_nan  = (expB == 31 && manB != 0);
+
+        Category current_cat;
+        if (a_nan || b_nan)         current_cat = CAT_NAN;
+        else if (a_inf || b_inf)    current_cat = CAT_INF;
+        else if (a_zero || b_zero)  current_cat = CAT_ZERO;
+        else if (a_sub || b_sub)    current_cat = CAT_SUBNORM;
+        else                        current_cat = CAT_NORMAL;
+
+        cat_totals[current_cat]++;
 
         uint16_t expected_ans = compute_golden_cpp_native(check_a, check_b);
-        uint16_t hw_ans = dut->ans;
+        uint16_t hw_ans = dut->ans; // quotient captured at the done edge
 
         if (hw_ans != expected_ans) {
             total_failed++;
-            log_files[CAT_NORMAL] << "PIPELINE_DRAIN FAIL: a=0x" << std::hex << check_a
-            << " b=0x" << check_b << " Exp=0x" << expected_ans
-            << " Got=0x" << hw_ans << "\n";
+            cat_fails[current_cat]++;
+
+            int32_t delta = static_cast<int32_t>(expected_ans) - static_cast<int32_t>(hw_ans);
+
+            log_files[current_cat]
+            << "a=0x" << std::hex << std::setfill('0') << std::setw(4) << check_a
+            << " | b=0x" << std::setw(4) << check_b
+            << " | Expected=0x" << std::setw(4) << expected_ans
+            << " | Got=0x" << std::setw(4) << hw_ans
+            << " | Delta=" << std::dec << delta << "\n";
         }
 
-        // Advance pipeline
-        dut->clk = 1;
-        dut->eval();
+        total_tests++;
 
-        // Shift history
-        hist_A[3] = hist_A[2];
-        hist_A[2] = hist_A[1];
-        hist_A[1] = hist_A[0];
-        hist_B[3] = hist_B[2];
-        hist_B[2] = hist_B[1];
-        hist_B[1] = hist_B[0];
+        // Progress Indicator
+        if (total_tests % update_interval == 0 || total_tests == total_combinations) {
+            float progress = static_cast<float>(total_tests) / total_combinations;
+            int pos = static_cast<int>(bar_width * progress);
+
+            std::cout << "\r[";
+            for (int bar = 0; bar < bar_width; ++bar) {
+                if (bar < pos) std::cout << "=";
+                else if (bar == pos) std::cout << ">";
+                else std::cout << " ";
+            }
+            std::cout << "] " << static_cast<int>(progress * 100.0) << " %" << std::flush;
+        }
     }
 
     std::cout << "\n\n===========================================" << std::endl;

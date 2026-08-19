@@ -145,130 +145,138 @@ int main(int argc, char** argv) {
     std::cout << "Testing all operations: ADD, SUB, MUL, DIV" << std::endl;
     std::cout << "Bound = " << std::hex << (bound - 1) << " (a,b each in [0," << std::hex << (bound - 1) << "])" << std::endl;
     std::cout << "Combinations per operation: " << std::dec << per_op_count << std::endl;
-    std::cout << "Pipeline latency assumed: 4 clock cycles\n" << std::endl;
+    std::cout << "FADD/FSUB/FMUL latency: 1 cycle (streaming); FDIV: fixed 12-cycle start-gated SRT\n" << std::endl;
 
-    // Each operation runs as its own streaming pass with op held constant.
-    // The output mux selects on the *current* op, so op must not change while
-    // a result is in flight. 4-deep history buffers track the input that is
-    // exiting the pipeline (checked at clk=0 before the shifting posedge).
+    // Each operation runs as its own pass with op held constant. The output
+    // mux selects on the *current* op, so op must not change while a result is
+    // in flight. FADD/FSUB/FMUL are single-cycle registered datapaths (checked
+    // every cycle against the input presented 1 cycle ago). FDIV is a
+    // start-gated sequential SRT core: each input is presented with a one-cycle
+    // `start` pulse and checked 12 cycles later (11-cycle SRT schedule + one
+    // capture register).
+    auto do_check = [&](int op, uint16_t check_a, uint16_t check_b, uint16_t hw_ans) {
+        total_tests++;
+        uint16_t expA = (check_a >> 10) & 0x1F;
+        uint16_t manA = check_a & 0x03FF;
+        uint16_t expB = (check_b >> 10) & 0x1F;
+        uint16_t manB = check_b & 0x03FF;
+
+        bool a_nan  = (expA == 31 && manA != 0);
+        bool b_nan  = (expB == 31 && manB != 0);
+        bool a_zero = (expA == 0 && manA == 0);
+        bool b_zero = (expB == 0 && manB == 0);
+        bool a_inf  = (expA == 31 && manA == 0);
+        bool b_inf  = (expB == 31 && manB == 0);
+
+        Category current_cat;
+        if (a_nan || b_nan)           current_cat = CAT_NAN;
+        else if (a_inf || b_inf)      current_cat = CAT_INF;
+        else if (a_zero || b_zero)    current_cat = CAT_ZERO;
+        else if ((expA == 0 && manA != 0) || (expB == 0 && manB != 0))
+                                      current_cat = CAT_SUBNORM;
+        else                          current_cat = CAT_NORMAL;
+
+        cat_totals[current_cat]++;
+
+        uint16_t expected_ans = compute_golden(op, check_a, check_b);
+
+        // NaN sign/payload is unspecified by IEEE 754 - accept any NaN.
+        bool both_nan = is_nan16(expected_ans) && is_nan16(hw_ans);
+        if (!both_nan && hw_ans != expected_ans) {
+            total_failed++;
+            cat_fails[current_cat]++;
+
+            if (total_failed <= 50) {
+                fail_outfile << "FAIL OP=" << op_names[op]
+                             << " a=0x" << std::hex << check_a
+                             << " | b=0x" << check_b
+                             << " | Expected=0x" << expected_ans
+                             << " | Got=0x" << hw_ans << std::dec << "\n";
+            }
+        }
+    };
+
     for (int op = 0; op < 4; op++) {
-        uint16_t hist_A[4] = {0, 0, 0, 0};
-        uint16_t hist_B[4] = {0, 0, 0, 0};
         uint64_t op_tested = 0;
 
         dut->op = static_cast<uint8_t>(op);
 
-        for (uint32_t a_idx = 0; a_idx < bound; a_idx++) {
-            for (uint32_t b_idx = 0; b_idx < bound; b_idx++) {
-                uint16_t a = static_cast<uint16_t>(a_idx);
-                uint16_t b = static_cast<uint16_t>(b_idx);
+        if (op == 3) {
+            // ---- FDIV: fixed 12-cycle start-gated SRT ----
+            // Present each input with a one-cycle `start` pulse. The SRT
+            // emits `done` 11 cycles after the start edge, at which point the
+            // completed quotient is captured into the output register, so the
+            // answer is stable on `ans` the following (12th) cycle. One test
+            // completes every 12 cycles.
+            for (uint64_t idx = 0; idx < per_op_count; idx++) {
+                uint16_t a = static_cast<uint16_t>(idx / bound);
+                uint16_t b = static_cast<uint16_t>(idx % bound);
 
                 dut->a = a;
                 dut->b = b;
 
-                // Evaluate combinational output before the posedge
+                // accept edge with start high (operands latched)
+                dut->clk = 0;
+                dut->eval();
+                dut->start = 1;
+                dut->clk = 1;
+                dut->eval();
+                dut->start = 0;
+
+                // 11 more edges: `done` pulses at the 10th, the quotient is
+                // captured at the 11th, so `ans` is stable on the next cycle.
+                for (int i = 0; i < 11; i++) {
+                    dut->clk = 0;
+                    dut->eval();
+                    dut->clk = 1;
+                    dut->eval();
+                }
                 dut->clk = 0;
                 dut->eval();
 
-                // CHECK: the result now on the bus corresponds to the input
-                // that entered the pipeline 4 cycles ago (hist[3]).
-                if (op_tested >= 4) {
-                    uint16_t check_a = hist_A[3];
-                    uint16_t check_b = hist_B[3];
-
-                    uint16_t expA = (check_a >> 10) & 0x1F;
-                    uint16_t manA = check_a & 0x03FF;
-                    uint16_t expB = (check_b >> 10) & 0x1F;
-                    uint16_t manB = check_b & 0x03FF;
-
-                    bool a_nan  = (expA == 31 && manA != 0);
-                    bool b_nan  = (expB == 31 && manB != 0);
-                    bool a_zero = (expA == 0 && manA == 0);
-                    bool b_zero = (expB == 0 && manB == 0);
-                    bool a_inf  = (expA == 31 && manA == 0);
-                    bool b_inf  = (expB == 31 && manB == 0);
-
-                    Category current_cat;
-                    if (a_nan || b_nan)           current_cat = CAT_NAN;
-                    else if (a_inf || b_inf)      current_cat = CAT_INF;
-                    else if (a_zero || b_zero)    current_cat = CAT_ZERO;
-                    else if ((expA == 0 && manA != 0) || (expB == 0 && manB != 0))
-                                                  current_cat = CAT_SUBNORM;
-                    else                          current_cat = CAT_NORMAL;
-
-                    cat_totals[current_cat]++;
-
-                    uint16_t expected_ans = compute_golden(op, check_a, check_b);
-                    uint16_t hw_ans = dut->ans;
-
-                    // NaN sign/payload is unspecified by IEEE 754 - accept any NaN.
-                    bool both_nan = is_nan16(expected_ans) && is_nan16(hw_ans);
-                    if (!both_nan && hw_ans != expected_ans) {
-                        total_failed++;
-                        cat_fails[current_cat]++;
-
-                        if (total_failed <= 50) {
-                            fail_outfile << "FAIL OP=" << op_names[op]
-                                         << " a=0x" << std::hex << check_a
-                                         << " | b=0x" << check_b
-                                         << " | Expected=0x" << expected_ans
-                                         << " | Got=0x" << hw_ans << std::dec << "\n";
-                        }
-                    }
-                }
-
-                // Advance pipeline
-                dut->clk = 1;
-                dut->eval();
-
-                // Shift history
-                hist_A[3] = hist_A[2];
-                hist_A[2] = hist_A[1];
-                hist_A[1] = hist_A[0];
-                hist_A[0] = a;
-
-                hist_B[3] = hist_B[2];
-                hist_B[2] = hist_B[1];
-                hist_B[1] = hist_B[0];
-                hist_B[0] = b;
-
+                do_check(op, a, b, dut->ans);
                 op_tested++;
-                total_tests++;
             }
-        }
+        } else {
+            // ---- FADD/FSUB/FMUL: single-cycle streaming ----
+            uint16_t hist_A[1] = {0};
+            uint16_t hist_B[1] = {0};
 
-        // Flush the final 4 combinations left in the hardware pipeline
-        for (int k = 0; k < 4; k++) {
+            for (uint32_t a_idx = 0; a_idx < bound; a_idx++) {
+                for (uint32_t b_idx = 0; b_idx < bound; b_idx++) {
+                    uint16_t a = static_cast<uint16_t>(a_idx);
+                    uint16_t b = static_cast<uint16_t>(b_idx);
+
+                    dut->a = a;
+                    dut->b = b;
+
+                    // Evaluate combinational output before the posedge
+                    dut->clk = 0;
+                    dut->eval();
+
+                    // CHECK: the result on the bus corresponds to the input
+                    // that entered the 1-stage datapath 1 cycle ago (hist[0]).
+                    if (op_tested >= 1) {
+                        do_check(op, hist_A[0], hist_B[0], dut->ans);
+                    }
+                    op_tested++;
+
+                    // Advance pipeline
+                    dut->clk = 1;
+                    dut->eval();
+
+                    hist_A[0] = a;
+                    hist_B[0] = b;
+                }
+            }
+
+            // Flush the final input left in the single-cycle datapath
             dut->clk = 0;
             dut->eval();
-
-            uint16_t check_a = hist_A[3];
-            uint16_t check_b = hist_B[3];
-
-            uint16_t expected_ans = compute_golden(op, check_a, check_b);
-            uint16_t hw_ans = dut->ans;
-
-            bool both_nan = is_nan16(expected_ans) && is_nan16(hw_ans);
-            if (!both_nan && hw_ans != expected_ans) {
-                total_failed++;
-                if (total_failed <= 50) {
-                    fail_outfile << "PIPELINE_DRAIN FAIL OP=" << op_names[op]
-                                 << " a=0x" << std::hex << check_a
-                                 << " | b=0x" << check_b
-                                 << " | Expected=0x" << expected_ans
-                                 << " | Got=0x" << hw_ans << std::dec << "\n";
-                }
-            }
-
+            do_check(op, hist_A[0], hist_B[0], dut->ans);
+            op_tested++;
             dut->clk = 1;
             dut->eval();
-
-            hist_A[3] = hist_A[2];
-            hist_A[2] = hist_A[1];
-            hist_A[1] = hist_A[0];
-            hist_B[3] = hist_B[2];
-            hist_B[2] = hist_B[1];
-            hist_B[1] = hist_B[0];
         }
 
         std::cout << "Op " << op_names[op] << ": done (" << per_op_count << " inputs checked)" << std::endl;
