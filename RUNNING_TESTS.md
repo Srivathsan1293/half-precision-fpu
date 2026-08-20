@@ -85,8 +85,8 @@ The firmware `Makefile` auto-detects the toolchain: it prefers
 > Optional: the project ships the local Sky130 liberty files
 > (`sky130_fd_sc_hd__tt_025C_1v80.lib` plus the `ss_100C_1v60` and
 > `ff_n40C_1v95` corners), so no PDK install is required. The corner libs
-> drive the multi-corner STA (`sta_*_ss.tcl` / `sta_*_ff.tcl`); see
-> `testing_results/feedback_response_20260820.md` for the corner/PVT tables.
+> drive the multi-corner STA (`sta_*_ss.tcl` / `sta_*_ff.tcl`); the corner/PVT
+> tables are in `README.md` §5.2.
 
 ---
 

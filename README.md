@@ -202,15 +202,14 @@ OpenLane's signoff STA reports the routed design at all nine PVT corners
 > **SS corner is setup-limited to ~58 MHz** — the honest statement is
 > *"100 MHz @ tt, ~58 MHz @ ss"*, not a single process-independent number.
 > The **FF corner is hold-clean** (0 hold violations on the routed tree), the
-> standard fast-fast hold signoff. Full pre-route LTP per corner is in
-> `testing_results/feedback_response_20260820.md` §1.1 (tt 7.3 ns / ss 15.0 ns
-> / ff 4.5 ns). The **power grid passes** too: worst VPWR IR drop 1.09 mV
-> (0.06 %), VGND 1.13 mV.
+> standard fast-fast hold signoff. Pre-route LTP on the shipped tt-synthesized
+> netlist corroborates the trend: **tt 7.3 ns / ss 15.0 ns / ff 4.5 ns** (Fmax
+> 136.8 / 66.6 / 222.3 MHz at the same three libs). The **power grid passes**
+> too: worst VPWR IR drop 1.09 mV (0.06 %), VGND 1.13 mV.
 
 ### 5.3 Power characterization (leakage vs dynamic, activity, real workload)
 
-From `tools/` runs and the same 10 ns PnR run (details in
-`testing_results/feedback_response_20260820.md` §2):
+From `tools/` runs and the same 10 ns PnR run:
 
 - **Leakage is 9.1 nW** — negligible, 4 orders below the earlier "< 0.1 mW" note.
 - **Dynamic scales linearly with activity** (pre-route, 8 ns closed point):
@@ -312,13 +311,12 @@ system speedups with real-time-safe division. Its weaknesses are the blocking
 interface (system-level throughput) and FDIV throughput — both natural next
 revision targets.
 
-**Explicit future work** (from the external review; not attempted here as each
-is a design change or needs tooling outside the OpenLane flow): SS-corner
-re-synthesis for a corner-independent 100 MHz claim (§5.2), integrated clock
-gating / power domains (the FSM already holds operands idle — measured average
-workload activity ≈ 0.03, §5.3), full IR-drop *maps* + EM (grid check passes,
-drop < 0.1 %), and a non-blocking AXI4-Stream/TileLink interface or
-**FMADD.H** to close the peak-vs-realized gap.
+**Explicit future work** (each item is a design change or needs tooling outside
+the OpenLane flow): SS-corner re-synthesis for a corner-independent 100 MHz
+claim (§5.2), integrated clock gating / power domains (the FSM already holds
+operands idle — measured average workload activity ≈ 0.03, §5.3), full IR-drop
+*maps* + EM (grid check passes, drop < 0.1 %), and a non-blocking
+AXI4-Stream/TileLink interface or **FMADD.H** to close the peak-vs-realized gap.
 
 ---
 
@@ -345,8 +343,7 @@ drop < 0.1 %), and a non-blocking AXI4-Stream/TileLink interface or
 │   ├── pareto_curve/             #   pareto_curve.png + pareto_data.csv
 │   ├── bench_20260819_124736/    #   pre-route datapath PPA report
 │   ├── flops_20260820_113346/    #   FLOPS report (peak + realized + FOMs)
-│   ├── cycle_comparison_*.md     #   SW vs custom vs FPNew cycle tables
-│   └── feedback_response_20260820.md  # multi-corner STA + power char + FLOPS/W fix
+│   └── cycle_comparison_*.md     #   SW vs custom vs FPNew cycle tables
 ├── designs/fpu_pcpi/             # OpenLane PnR design (see note below)
 │   ├── config.json               #   baseline 10 ns config
 │   ├── src/fpu_pcpi.v            #   sv2v-flattened RTL for the PnR flow
