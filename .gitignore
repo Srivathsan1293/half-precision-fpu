@@ -19,3 +19,7 @@ synth_outputs/
 testing_results/bench_*/runs/
 testing_results/bench_*/netlists/
 testing_results/flops_*/runs/
+__pycache__/
+*.pyc
+designs/fpu_pcpi/runs/
+designs/fpu_pcpi/pareto/runs/

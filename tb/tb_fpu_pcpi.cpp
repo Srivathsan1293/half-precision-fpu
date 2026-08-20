@@ -712,18 +712,24 @@ int main(int argc, char** argv) {
     VerilatedVcdC* tfp = new VerilatedVcdC;
     Vsoc_fpu_top* dut = new Vsoc_fpu_top;
     dut->trace(tfp, 99);
-    tfp->open("testing_results/picorv32_fpu.vcd");
 
     bool vcd_on = false;
+    const char* vcd_path = nullptr;
     const char* dump_path = nullptr;
     uint64_t max_cycles = MAX_CYCLES;
     for (int i = 1; i < argc; i++) {
         if (std::string(argv[i]) == "--trace") vcd_on = true;
+        else if (std::string(argv[i]) == "--vcd" && i + 1 < argc) {
+            vcd_path = argv[++i];
+            vcd_on = true;
+        }
         else if (std::string(argv[i]) == "--dump" && i + 1 < argc)
             dump_path = argv[++i];
         else if (std::string(argv[i]) == "--maxcycles" && i + 1 < argc)
             max_cycles = std::strtoull(argv[++i], nullptr, 10);
     }
+    if (vcd_on)
+        tfp->open(vcd_path ? vcd_path : "testing_results/picorv32_fpu.vcd");
 
     // ---- reset ----
     dut->clk = 0;

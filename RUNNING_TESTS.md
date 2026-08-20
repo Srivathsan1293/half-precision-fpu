@@ -82,8 +82,11 @@ The firmware `Makefile` auto-detects the toolchain: it prefers
 `riscv64-unknown-elf-gcc`, otherwise falls back to `clang --target=riscv32-unknown-elf`
 + `ld.lld`. You only need one of them.
 
-> Optional: the project ships a local Sky130 liberty file
-> (`sky130_fd_sc_hd__tt_025C_1v80.lib`), so no PDK install is required.
+> Optional: the project ships the local Sky130 liberty files
+> (`sky130_fd_sc_hd__tt_025C_1v80.lib` plus the `ss_100C_1v60` and
+> `ff_n40C_1v95` corners), so no PDK install is required. The corner libs
+> drive the multi-corner STA (`sta_*_ss.tcl` / `sta_*_ff.tcl`); see
+> `testing_results/feedback_response_20260820.md` for the corner/PVT tables.
 
 ---
 

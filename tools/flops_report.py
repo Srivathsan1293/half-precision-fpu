@@ -220,8 +220,9 @@ def main():
     md.append(f"| ops/FO4 (= 1/LTP_fo4) | {ops_per_fo4:.4f}" if ops_per_fo4 else "| ops/FO4 | n/a |")
     md.append(f"| FLOPS/GE (peak, LTP-bound) | {(fmax_ltp or 0) * 1e6 / ge / 1e3:.3f} kFLOP/s/GE"
               if ge and fmax_ltp else "| FLOPS/GE | n/a |")
-    md.append(f"| FLOPS/W (peak, closed) | {(fmax_closed or 0) / (pj_op or 1):.2f} GFLOPS/W"
-              if pj_op and fmax_closed else "| FLOPS/W | n/a |")
+    best_mw = best["tot_mw"] if best else None
+    md.append(f"| FLOPS/W (peak, closed) | {(fmax_closed or 0) / (best_mw or 1):.2f} GFLOPS/W"
+              if best_mw and fmax_closed else "| FLOPS/W | n/a |")
     md.append(f"| mW/MHz | {(best['tot_mw'] or 0) / fmax_closed:.4f}" if best and fmax_closed else "| mW/MHz | n/a |")
     md.append(f"| ADP (um2.ns) | {area * ltp:.0f}" if area and ltp else "| ADP | n/a |")
     md.append("")

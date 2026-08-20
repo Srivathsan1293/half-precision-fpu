@@ -20,7 +20,8 @@ clean OpenLane physical-design signoff.
 | Interface peak FDIV (fixed 12-cycle) | 10.4 / 11.4 MFLOP/s |
 | **Realized at SoC level** (matmul / FIR / divide / AI layer) | **2.98–4.22 MFLOP/s** |
 | FLOPS/GE (peak, LTP-bound) | 22.3 kFLOP/s/GE |
-| FLOPS/W (peak, timing-closed) | 2.78 GFLOPS/W |
+| FLOPS/W (peak, timing-closed, pre-route) | 22.2 GFLOPS/W |
+| FLOPS/W (peak, post-PnR @ 100 MHz) | 12.2 GFLOPS/W |
 | Energy per op | 45 pJ |
 | ops/FO4 (speed, process-independent) | 0.0051 |
 
@@ -96,7 +97,7 @@ to), so peak is *interface*-limited: the wrapper is a blocking coprocessor that
 retires one op per latency (FADD/FSUB/FMUL = 1 cycle, FDIV = 12 cycles). The
 underlying `fpu_test` datapath is a fully pipelined 1-op/cycle unit.
 
-From `testing_results/flops_20260819_125114/flops_report.md` (Yosys + ABC
+From `testing_results/flops_20260820_113346/flops_report.md` (Yosys + ABC
 `-D 4000`, OpenSTA, tt/1.8 V/25 °C):
 
 | Process metric | Value |
@@ -132,7 +133,8 @@ The gap between peak and realized is firmware, not the FPU: each custom op costs
 The FPU itself spends only 1 (add/mul) or 12 (div) of those cycles.
 
 **Process-independent FOMs:** ops/FO4 = 0.0051, FLOPS/GE = 22.3 kFLOP/s/GE,
-FLOPS/W = 2.78 GFLOPS/W, 0.045 mW/MHz, ADP = 168 kµm²·ns. Raw FLOPS/MHz are not
+FLOPS/W = 22.2 GFLOPS/W (pre-route, timing-closed; **12.2 GFLOPS/W** post-PnR
+at 100 MHz / 8.19 mW), 0.045 mW/MHz, ADP = 168 kµm²·ns. Raw FLOPS/MHz are not
 portable across nodes — compare designs on **ops/FO4**, **kGE**, and **pJ/op**.
 
 ---
@@ -182,6 +184,44 @@ attributes the cost centers: FMUL 2.0 kGE / 7.6 kµm², FADDSUB 1.5 kGE /
 5.6 kµm², FDIV 2.3 kGE / 8.7 kµm² (the deterministic SRT rewrite that made the
 12-cycle latency real-time-safe). The post-PnR wrapper adds fill/tap/antenna
 cells and timing-repair buffers, hence 4,137 cells / 31.3 kµm².
+
+### 5.2 Multi-corner signoff (fresh 10 ns run: `designs/fpu_pcpi/runs/pnr_run16`)
+
+OpenLane's signoff STA reports the routed design at all nine PVT corners
+(max/nom/min × ss/tt/ff). Quoted from `final/metrics.json`
+(`timing__setup__wns__corner:*`, `timing__hold__wns__corner:*`, `*_vio__count__corner:*`):
+
+| Corner | Setup WNS @ 10 ns | Setup vio | Hold WNS | Hold vio | Implied Fmax |
+|--------|------------------:|----------:|---------:|---------:|-------------:|
+| **ss** `max_ss_100C_1v60` | **−7.16** | 64 | +0.88 | 0 | **~58 MHz** (setup-limited) |
+| **tt** `nom_tt_025C_1v80` | **+1.02** | 0 | +0.32 | 0 | **100 MHz (closed)** |
+| **ff** `max_ff_n40C_1v95` | +4.24 | 0 | **+0.10** | **0** | ~174 MHz (hold clean) |
+
+> The **10 ns / 100 MHz headline holds at tt** (setup +1.02, hold +0.32; the
+> run reproduces run15's 4,137 cells / 31,290 µm² / 8.19 mW exactly). The
+> **SS corner is setup-limited to ~58 MHz** — the honest statement is
+> *"100 MHz @ tt, ~58 MHz @ ss"*, not a single process-independent number.
+> The **FF corner is hold-clean** (0 hold violations on the routed tree), the
+> standard fast-fast hold signoff. Full pre-route LTP per corner is in
+> `testing_results/feedback_response_20260820.md` §1.1 (tt 7.3 ns / ss 15.0 ns
+> / ff 4.5 ns). The **power grid passes** too: worst VPWR IR drop 1.09 mV
+> (0.06 %), VGND 1.13 mV.
+
+### 5.3 Power characterization (leakage vs dynamic, activity, real workload)
+
+From `tools/` runs and the same 10 ns PnR run (details in
+`testing_results/feedback_response_20260820.md` §2):
+
+- **Leakage is 9.1 nW** — negligible, 4 orders below the earlier "< 0.1 mW" note.
+- **Dynamic scales linearly with activity** (pre-route, 8 ns closed point):
+  1.89 mW @ 0.01 → 5.63 mW @ 0.1 (headline) → 13.0 mW @ 0.5.
+- **Real-workload toggle rates** (VCD from the actual SoC runs, `fpu_pcpi`
+  scope): **0.029** (benchmm) and **0.032** (benchdiv) average — *below* the
+  0.1 default, so the published power numbers are a conservative upper bound;
+  the workload-average power interpolates to ~2.9 mW (most of it the SW
+  soft-float phase where the FPU is idle with operands held static by the
+  PCPI FSM). The 0.01 row (1.89 mW) is the closest "idle" datapoint without
+  adding ICG cells.
 
 ---
 
@@ -245,13 +285,18 @@ accept→ready: FADD/FSUB/FMUL = 2, FDIV = 12. See `pcpi_wrapper_spec.md`.
   2.3 kGE) makes worst-case latency provable — the property the SWaP-C analysis
   leans on for FOC motor loops.
 - **Clean physical signoff.** 8.3 kGE, 8.19 mW, 100 MHz, 0 DRC / 0 LVS on a
-  real PDK, with a full Pareto curve to trade power/area for clock.
+  real PDK, with a full Pareto curve to trade power/area for clock. The 100 MHz
+  claim is **tt-corner**; the design is now also signoff-checked at **all nine
+  PVT corners** (§5.2) — hold-clean at ff, setup-limited to ~58 MHz at ss.
 
 **Where it is merely average.**
 
 - On **130 nm**, ~100–160 MHz is middle-of-the-pack: FP4/fp8 energy units reach
   ~250 MHz (narrower datatypes), PicoRV32-class cores 100–200 MHz. Per-FO4 depth
   (0.0051 ops/FO4, 172–327 FO4 LTP) is normal for an RNE fp16 unit.
+- **No true corner-independent signoff.** A single 10 ns target only closes at
+  tt; a commercial claim of "100 MHz" across PVT would need SS-corner
+  re-synthesis (larger area) — quantified, but not done (see §5.2).
 - **Realized FLOPS (2.98–4.22 MFLOP/s) are 1/30th of peak** because the
   *coprocessor interface* is blocking — one op per latency with ~30 firmware
   cycles of overhead per op on the single-issue CPU. A pipelined load-store or
@@ -266,6 +311,14 @@ datapoints, ahead on correctness evidence, and delivers order-of-magnitude
 system speedups with real-time-safe division. Its weaknesses are the blocking
 interface (system-level throughput) and FDIV throughput — both natural next
 revision targets.
+
+**Explicit future work** (from the external review; not attempted here as each
+is a design change or needs tooling outside the OpenLane flow): SS-corner
+re-synthesis for a corner-independent 100 MHz claim (§5.2), integrated clock
+gating / power domains (the FSM already holds operands idle — measured average
+workload activity ≈ 0.03, §5.3), full IR-drop *maps* + EM (grid check passes,
+drop < 0.1 %), and a non-blocking AXI4-Stream/TileLink interface or
+**FMADD.H** to close the peak-vs-realized gap.
 
 ---
 
@@ -291,8 +344,9 @@ revision targets.
 │   ├── die.png / cts.png / placement_density_10ns.png
 │   ├── pareto_curve/             #   pareto_curve.png + pareto_data.csv
 │   ├── bench_20260819_124736/    #   pre-route datapath PPA report
-│   ├── flops_20260819_125114/    #   FLOPS report (peak + realized + FOMs)
-│   └── cycle_comparison_*.md     #   SW vs custom vs FPNew cycle tables
+│   ├── flops_20260820_113346/    #   FLOPS report (peak + realized + FOMs)
+│   ├── cycle_comparison_*.md     #   SW vs custom vs FPNew cycle tables
+│   └── feedback_response_20260820.md  # multi-corner STA + power char + FLOPS/W fix
 ├── designs/fpu_pcpi/             # OpenLane PnR design (see note below)
 │   ├── config.json               #   baseline 10 ns config
 │   ├── src/fpu_pcpi.v            #   sv2v-flattened RTL for the PnR flow
