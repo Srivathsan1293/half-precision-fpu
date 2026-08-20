@@ -1,4 +1,4 @@
-# Half-Precision IEEE-754 FPU for PicoRV32 — Final Report
+# Half-Precision IEEE-754 FPU for PicoRV32
 
 A fast, silicon-proven **IEEE-754 half-precision (fp16) floating-point unit** for
 AI/robotics edge workloads, implemented in SystemVerilog and taped out to the
@@ -382,7 +382,6 @@ AXI4-Stream/TileLink interface or **FMADD.H** to close the peak-vs-realized gap.
 - **`SWaP_C_conclusion.md`** — Size/Weight/Power/Cost analysis framing the
   post-routed numbers (8.3 kGE, 8.19 mW, deterministic 12-cycle FDIV) for a
   real-time FOC motor-control use case.
-- **`plan.md`** — working plan/log for the visualization + Pareto deliverables.
 
 ### Repo contents note
 
