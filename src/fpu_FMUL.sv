@@ -14,7 +14,7 @@ module FMUL (
 
     // Shared sign bit from top
     wire sign_bit = a[15] ^ b[15];
-    // 1. Exception Pipeline Registers (shared flag handling from top)
+    // Exception Pipeline Registers (shared flag handling from top)
     // Encode special case into 2 bits to save flip-flops
     logic [1:0] special_type;
     wire special = nanA | nanB | infinA | infinB | A0 | B0;
