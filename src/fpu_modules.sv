@@ -30,17 +30,3 @@ module subnormal_fix (
     assign adj_exp_a = 7'd0 - exp_adj; // Fixed constant subtraction or ~exp_adj + 1
 endmodule
 
-module reciprocal_rom (
-    input  logic [9:0]  addr,
-    output logic [13:0] data_out
-);
-    logic [13:0] rom_memory [0:1023];
-
-    initial begin
-        $readmemb("/home/srivathsann/Documents/uni/DECA/FPU_project/src/reciprocal_rom.mem", rom_memory);
-    end
-
-    always_comb begin
-        data_out = rom_memory[addr];
-    end
-endmodule
