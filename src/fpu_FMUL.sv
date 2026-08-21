@@ -54,7 +54,7 @@ module FMUL (
     // cross-cycle contamination of the sign of the product).
     assign ans_corrected_0[15] = sign_bit_reg;
 
-    // 2. Consolidate Exponent Adders
+    // Consolidate Exponent Adders
     // Calculate a single base exponent to eliminate duplicate arithmetic logic
     reg [6:0] base_exp;
     /* verilator lint_off UNUSEDSIGNAL */
@@ -92,7 +92,7 @@ module FMUL (
     /* verilator lint_off UNUSEDSIGNAL */
     wire [6:0] mask_shift = is_pre_round_subnormal ? safe_shift : 7'd0;
 
-    // 3. Eliminate Parallel Comparators
+    // Eliminate Parallel Comparators
     // Shift-based bitmask replaces the 23-iteration for-loop
     wire [22:0] shift_mask_full;
     assign shift_mask_full = ~(23'h7FFFFF << mask_shift);
@@ -106,7 +106,7 @@ module FMUL (
     /* verilator lint_on UNUSEDSIGNAL */
     wire [6:0] pre_round_exp = is_pre_round_subnormal ? 7'd0 : exp_passed;
 
-    // --- 2. APPLY RNTE ROUNDING ---
+    // --- APPLY RNTE ROUNDING ---
     wire G, R, S;
     assign G = pre_round_man[10];
     assign R = pre_round_man[9];
@@ -121,7 +121,7 @@ module FMUL (
 
     wire [6:0] final_exp = (round_up && rounded_man[10]) ? rounded_exp : pre_round_exp;
 
-    // --- 3. FINAL OVERFLOW CHECK ---
+    // --- FINAL OVERFLOW CHECK ---
     wire overflow = ~final_exp[6] & (final_exp[5] | (&final_exp[4:0]));
 
     assign ans_corrected_0[14:10] = overflow ? 5'b11111 : final_exp[4:0];
