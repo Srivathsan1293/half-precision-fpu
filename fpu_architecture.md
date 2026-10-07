@@ -42,17 +42,17 @@ The `fpu_pcpi` wrapper implements a 3-state Finite State Machine (`IDLE` → `CO
 stateDiagram-v2
     [*] --> IDLE
     
-    IDLE --> COMPUTE : start_compute (rising edge of valid & recognized instruction)
+    IDLE --> COMPUTE : on<br/>start_compute<br/>(rising edge of valid)<br/>& recognized instruction
     
     state COMPUTE {
         [*] --> Processing
-        Processing --> FADD_FSUB_FMUL : 1 cycle (registered)
-        Processing --> FDIV_SRT : 12 cycles (fixed SRT schedule)
+        Processing --> FADD_FSUB_FMUL : 1-cycle (registered)
+        Processing --> FDIV_SRT : 12-cycles (fixed SRT schedule)
     }
     
-    COMPUTE --> DONE : answer_valid (result ready)
+    COMPUTE --> DONE : on<br/>answer_valid<br/>(result ready)
     
-    DONE --> IDLE : pcpi_valid falls (instruction retired)
+    DONE --> IDLE : when<br/>pcpi_valid falls<br/>(instruction retired)
 ```
 
 ### Handshake Semantics
@@ -71,26 +71,25 @@ sequenceDiagram
     autonumber
     participant CPU as PicoRV32 CPU
     participant Wrapper as fpu_pcpi Wrapper
-    participant FDIV as fpu_FDIV.sv
-    participant SRT as SRT Divider Core
+    participant DIV as fpu_FDIV.sv
+    participant SRT as SRT Divider
 
-    CPU->>Wrapper: pcpi_valid=1, insn (FDIV), rs1, rs2
-    Note over Wrapper: Decode instr_fdiv, assert pcpi_wait=1
-    Wrapper->>FDIV: start=1 pulse, a, b operands
+    Note over Wrapper: Decode FDIV, assert<br/>pcpi_wait=1
+    Wrapper->>DIV: start pulse, a & b operands
     
-    Note over FDIV: Latch operands & pending metadata
-    FDIV->>SRT: start pulse to SRT core
+    Note over DIV: Latch operands,<br/>pending metadata
+    DIV->>SRT: start pulse
     
-    loop 8 Radix-4 Iterations (11 cycles total)
-        SRT->>SRT: Quotient calculation & remainder updates
+    loop 8 Radix-4 iterations<br/>(11 cycles total)
+        SRT->>SRT: quotient calc & remainder updates
     end
     
-    SRT-->>FDIV: srt_done pulse (cycle 11)
-    Note over FDIV: Capture quotient & normalize/round
-    FDIV-->>Wrapper: ans valid (cycle 12)
+    SRT-->>DIV: srt_done pulse (cycle 11)
+    Note over DIV: Capture quotient,<br/>normalize/round
+    DIV-->>Wrapper: ans valid (cycle 12)
     
-    Wrapper->>CPU: pcpi_ready=1, pcpi_wr=1, pcpi_rd=result
-    CPU->>Wrapper: pcpi_valid=0 (retire instruction)
+    Wrapper->>CPU: pcpi_ready=1, pcpi_wr=1,<br/>pcpi_rd=result
+    CPU->>Wrapper: pcpi_valid=0<br/>(retire instruction)
     Note over Wrapper: Return to IDLE state
 ```
 
