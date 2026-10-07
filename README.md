@@ -365,6 +365,7 @@ AXI4-Stream/TileLink interface or **FMADD.H** to close the peak-vs-realized gap.
 ├── RUNNING_TESTS.md              # how to run every test + post-PnR analysis
 ├── pcpi_wrapper_spec.md          # PCPI wrapper spec (custom0 encoding, FSM, handshake)
 └── SWaP_C_conclusion.md          # SWaP-C analysis for FOC/robotics
+└── fpu_architecture.md           # Architecture diagrams and flowcharts (Mermaid.js)
 ```
 
 ### What the `.md` files are for
@@ -383,6 +384,7 @@ AXI4-Stream/TileLink interface or **FMADD.H** to close the peak-vs-realized gap.
   post-routed numbers (8.3 kGE, 8.19 mW, deterministic 12-cycle FDIV) for a
   real-time FOC motor-control use case.
 - **`plan.md`** — working plan/log for the visualization + Pareto deliverables.
+- **`fpu_architecture.md`** — conceptual architecture overview with Mermaid.js flowcharts showing system interface, PCPI FSM control flow, and FDIV SRT divider operation.
 
 ### Repo contents note
 
