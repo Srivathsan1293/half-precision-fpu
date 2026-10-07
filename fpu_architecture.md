@@ -11,13 +11,13 @@ The system consists of the **PicoRV32 CPU core** communicating with the **`fpu_p
 ```mermaid
 graph TD
     subgraph PicoRV32 CPU
-        CPU[CPU Core] -->|pcpi_valid, insn, rs1, rs2| PCPI_BUS[PCPI Bus]
-        PCPI_BUS -->|pcpi_rd, wr, ready, wait| CPU
+        CPU[CPU Core] -->|valid, insn,<br/>rs1, rs2| PCPI_BUS[PCPI Bus]
+        PCPI_BUS -->|rd, wr, ready,<br/>wait| CPU
     end
 
     subgraph fpu_pcpi Wrapper
-        PCPI_BUS --> FSM[3-State FSM & Decoder]
-        FSM -->|fpu_op / start / operands| DATAPATH[FPU Datapath fpu_test]
+        PCPI_BUS --> FSM[3-State<br/>FSM Decoder]
+        FSM -->|op / start/<br/>operands| DATAPATH[FPU Datapath]
     end
 
     subgraph FPU Datapath
@@ -42,17 +42,17 @@ The `fpu_pcpi` wrapper implements a 3-state Finite State Machine (`IDLE` → `CO
 stateDiagram-v2
     [*] --> IDLE
     
-    IDLE --> COMPUTE : on<br/>start_compute<br/>(rising edge of valid)<br/>& recognized instruction
+    IDLE --> COMPUTE : on start_compute<br/>rising edge valid & recognized
     
     state COMPUTE {
         [*] --> Processing
         Processing --> FADD_FSUB_FMUL : 1-cycle (registered)
-        Processing --> FDIV_SRT : 12-cycles (fixed SRT schedule)
+        Processing --> FDIV_SRT : 12-cycles (fixed SRT)
     }
     
-    COMPUTE --> DONE : on<br/>answer_valid<br/>(result ready)
+    COMPUTE --> DONE : answer_valid<br/>result ready
     
-    DONE --> IDLE : when<br/>pcpi_valid falls<br/>(instruction retired)
+    DONE --> IDLE : pcpi_valid falls<br/>instruction retired
 ```
 
 ### Handshake Semantics
@@ -74,19 +74,19 @@ sequenceDiagram
     participant DIV as fpu_FDIV.sv
     participant SRT as SRT Divider
 
-    Note over Wrapper: Decode FDIV, assert<br/>pcpi_wait=1
+    Note over Wrapper: Decode FDIV,<br/>assert pcpi_wait=1
     Wrapper->>DIV: start pulse, a & b operands
     
     Note over DIV: Latch operands,<br/>pending metadata
     DIV->>SRT: start pulse
     
     loop 8 Radix-4 iterations<br/>(11 cycles total)
-        SRT->>SRT: quotient calc & remainder updates
+        SRT->>SRT: quotient calc &<br/>remainder updates
     end
     
-    SRT-->>DIV: srt_done pulse (cycle 11)
+    SRT-->>DIV: srt_done pulse<br/>(cycle 11)
     Note over DIV: Capture quotient,<br/>normalize/round
-    DIV-->>Wrapper: ans valid (cycle 12)
+    DIV-->>Wrapper: ans valid<br/>(cycle 12)
     
     Wrapper->>CPU: pcpi_ready=1, pcpi_wr=1,<br/>pcpi_rd=result
     CPU->>Wrapper: pcpi_valid=0<br/>(retire instruction)
