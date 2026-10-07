@@ -384,10 +384,9 @@ AXI4-Stream/TileLink interface or **FMADD.H** to close the peak-vs-realized gap.
   post-routed numbers (8.3 kGE, 8.19 mW, deterministic 12-cycle FDIV) for a
   real-time FOC motor-control use case.
 - **`fpu_architecture.md`** — conceptual architecture overview with Mermaid.js flowcharts showing system interface, PCPI FSM control flow, and FDIV SRT divider operation.
+- **`plan.md`** — working plan/log for the visualization + Pareto deliverables.
 
 ### Repo contents note
-
-The repo includes the complete `src/`, `tb/`, `testing_results/`,
 `synth_scripts/`, `tools/` and `third_party/` trees. The OpenLane **runs** under
 `designs/fpu_pcpi/runs/` (and `pareto/runs/`) are large build outputs and are
 not committed; the committed essentials are `designs/fpu_pcpi/config.json` and
